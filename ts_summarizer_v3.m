@@ -58,7 +58,8 @@ merged_level_ds = {1,segments};
 level_ds{1} = ts_array;
 merged_level_ds{1} = ts_array;
 %level_ds{1,1} = ts_array{1};
-
+merge_highlighter = [];
+merge_highlighter_idx = 1
 
 local_segments = segments;
 for segment = 2:segments
@@ -78,40 +79,15 @@ for segment = 2:segments
     % plot(cell2mat(temp(1,:)))
     %% Keep meta data
     original_data = transpose({ts_array{min_idx}, ts_array{min_idx+1}});
+    merge_highlighter(merge_highlighter_idx) = min_idx;
+    merge_highlighter_idx = merge_highlighter_idx + 1;
     %% Replace with new merged subsequence in ts_array
     ts_array{min_idx + 1} = [];
     ts_array{min_idx} = cell2mat(temp);
     ts_array = ts_array(~cellfun('isempty',ts_array));
     merged_level_ds{segment} = ts_array;
-    %% 
-    %temp
-%     
-%     level_ds{1,segment} = {ts_array{1}};
-%     for k = 1:local_segments -1
-%         if  k == min_idx
-%             size_of_prev_cell = size(level_ds{1,segment-1}{1,k})
-%             if size_of_prev_cell(1) > 1
-%                 temp2 = vertcat(level_ds{1,segment-1}{1,k},level_ds{1,segment-1}{1,k+1});
-%                 level_ds{1,segment}{1,k} = temp2;
-%             else
-%                 level_ds{1,segment}{1,k} = original_data;
-%             end
-%             %temp_ts_array{k} = original_data
-%                
-%         else
-%             if segment > 2
-%                 level_ds{1,segment}{1,k} = level_ds{1,segment-1}{1,k + min_idx};
-%             %temp_ts_array{k} = ts_array{k};
-%             else
-%                 level_ds{1,segment}{1,k} = ts_array{k};
-%             end
-%         end
-%     end
-%     
-    
-%level_ds{1,segment} = {ts_array{1}};
-%for k = 2:local_segments -1
-k = segment
+
+    k = segment;
     % first copy over previous level_ds into next level_ds
     level_ds{1,k} = level_ds{1,k-1};
     %remove minimum index from new cell
@@ -131,45 +107,83 @@ k = segment
     
     
     
-    
-    
    %level_ds{segment} = temp_ts_array;
     local_segments = local_segments - 1;
 end
 
 %% Now plot all of the different levels in level_ds
 start = 1;
+figure;
+hold on;
+plotNumber = 1;
+merged_array = []
+merge_idx = 1;
 for i = 1:length(level_ds)
-    figure;
+    subplot(segments/2, 2, plotNumber);
+    axis([0 350 -2 2])
     hold on;
+    start = 1;
     title(['Level ' num2str(i)]);
     for j = 1:length(level_ds{1,i})
         size_of_cell =  size(level_ds{1,i}{1,j});
         if size_of_cell(1) > 1
             for k = 1:length(level_ds{1,i}{1,j}) 
-                if k > 1
-                    plot([start: start+num_data_points-1],level_ds{1,i}{1,j}{k,1}, 'Color', [.5 .5 .5], 'LineWidth', 2);
+                merged_array(merge_idx) = j;
+                merge_idx = merge_idx + 1;
+                if ismember(k, merged_array)
+                    color = [.5 .5 .5];
+                    merged_array(merge_idx) = j;
+                    merge_idx = merge_idx + 1;
                 else
-                    plot([start: start+num_data_points-1],level_ds{1,i}{1,j}{k,1}, 'Color', [1 0 0], 'LineWidth', 3);
+                    color = [1 0 0];
+                    merged_array(merge_idx) = k;
+                    merge_idx = merge_idx + 1;
+                end
+                if k > 1
+                    %merged = [k, ]
+                    plot([start: start+num_data_points-1],level_ds{1,i}{1,j}{k,1}, 'Color', color, 'LineWidth', 1);
+                else
+                    plot([start: start+num_data_points-1],level_ds{1,i}{1,j}{k,1}, 'Color', color, 'LineWidth', 1);
                 end
             end
             start = start + num_data_points;
         else
-            plot([start: start+num_data_points-1],level_ds{1,i}{1,j}, 'Color', [.5 .5 .5], 'LineWidth', 2);
+            plot([start: start+num_data_points-1],level_ds{1,i}{1,j}, 'Color', [.5 .5 .5], 'LineWidth', 1);
             start = start + num_data_points;
         end
     end
+    %merged = []
+    merge_idx = 1;
+    plotNumber = plotNumber + 1;
 end
 
 start = 1;
+figure;
+plotNumber = 1;
+
+hold on;
+found_merge = 0
+merge_highlighter_idx = 1;
 for j = 1:length(merged_level_ds)
-    figure;
+    subplot(segments/2, 2, plotNumber);
+    axis([0 350 -2 2])
     hold on;
     title(['Merged Level ' num2str(j)]);
     for k = 1:length(merged_level_ds{1,j})
-        plot([start: start+num_data_points-1],merged_level_ds{1,j}{1,k});
+        color = [.5 .5 .5];
+        if j > 1 
+            if merge_highlighter(merge_highlighter_idx) == k && found_merge == 0
+                color = [1 0 0];
+                found_merge = 1;
+                merge_highlighter_idx = merge_highlighter_idx + 1;
+            end
+        end
+        plot([start: start+num_data_points-1],merged_level_ds{1,j}{1,k}, 'Color', color);
         start = start + num_data_points;
     end
+    found_merge = 0
+    start = 1;
+    plotNumber = plotNumber + 1;
 end
 
 
