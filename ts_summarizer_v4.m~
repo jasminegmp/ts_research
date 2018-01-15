@@ -75,8 +75,10 @@ dp = findNN(transpose(y),transpose(y(mp_motifs(1,1):mp_motifs(1,1)-MAGIC_mp_seg_
     % Summarize time series now
     % For all the minimums found ex: [48, 100, 158, 204]
     % Go and merge these and build a merged array
-    % Remove merged array from original time series now
-% go and re run matrix profile and re-generate a matrix profile
+    
+
+
+% Else, go and re run matrix profile and re-generate a matrix profile
 
 
 
