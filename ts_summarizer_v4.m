@@ -84,6 +84,7 @@ min_motif_b = mp_motifs(min_motif_idx_b,2);
 
 % Calculate DP based on the most min value
 dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
+%dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
 
 figure; plot(dp)
 
@@ -99,8 +100,15 @@ scatter(dp_local_min_time, dp_local_min_value);
 dp_loc_min = transpose(vertcat(dp_local_min_time, dp_local_min_value));
 
 % Find if motif found in mp (min_motif_idx_b) exists in minimums of DP
-MAGIC_threshold = .1
-if exists()
+MAGIC_threshold = .35;
+threshold = round(MAGIC_threshold *MAGIC_mp_seg_len);
+found = [];
+
+for idx = 1:length(dp_loc_min)
+    idx_test = abs(dp_loc_min(idx,1)-mp_motifs(min_motif_idx_b,1));
+    if (idx_test <= threshold)
+        found = [dp_loc_min(idx,1), dp_loc_min(idx,2)];
+    end
 end
 
 % If it does, now go find all minimums that is within threshold of the
@@ -109,9 +117,29 @@ end
     % For all the minimums found ex: [48, 100, 158, 204]
     % Go and merge these and build a merged array
     % Remove merged array from original time series now
+if ~isempty(found)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Find all minimums
+    minimums_found = [];
+    count = 1;
+    min_thresh = MAGIC_threshold*found(2);
+    min_bound = found(2)-min_thresh;
+    max_bound = found(2)+min_thresh;
+    for idx = 1:length(dp_loc_min)
+        if (dp_loc_min(idx,2) >= min_bound) && (dp_loc_min(idx,2) <= max_bound)
+            if dp_loc_min(idx,1) ~= found(1)
+                minimums_found(count) = dp_loc_min(idx,1);
+                count = count + 1;
+            end
+        end
+    end
+    sort(minimums_found)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Merge first the pair of found motifs(motif_a and motif_b)
+    
 % go and re run matrix profile and re-generate a matrix profile
-
-
+else
+end
 
 
 
