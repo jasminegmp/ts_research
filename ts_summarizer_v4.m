@@ -47,28 +47,61 @@ diff_loc_min = diff(loc_min(:,1));
 %     end
 % end
 
-count = 1
-exit = 1
+count = 1;
+exit = 1;
 while(exit)
     if ((diff_loc_min(count) > MAGIC_mp_seg_len) || (diff_loc_min(count) < MAGIC_mp_seg_len/2))
         loc_min(count,:) = [];
         diff_loc_min = diff(loc_min(:,1));
     else
-        count = count + 2
+        count = count + 2;
     end
     if count >= length(diff_loc_min)
-        exit = 0
+        exit = 0;
     end
 end
 
-mp_motifs = sortrows(loc_min, 2, 'ascend');
+mp_motifs = sortrows(loc_min, 1, 'ascend');
 % For now, this is good enough to know where to look for distance profile
 
-%% Calculate DP based on the most minimum value and consecutiveness 
-% Right now this is hard coded
-dp = findNN(transpose(y),transpose(y(mp_motifs(1,1):mp_motifs(1,1)-MAGIC_mp_seg_len-1)));
+%% Debugging plots
+figure;
+plot(matrixProfile);
+hold on;
+scatter(mp_motifs(:,1),mp_motifs(:,2));
+plot(y);
 
-% Find if the minimums in DP match the mp_motif tested
+%% Calculate DP based on the most minimum value and consecutiveness
+% That means you have to calculate the pairs of mins
+[min_motif_a,min_motif_idx_a] = min(mp_motifs(:,2));
+
+if mod(min_motif_idx_a,2) % ODD
+    min_motif_idx_b = min_motif_idx_a + 1;
+else % EVEN
+    min_motif_idx_b = min_motif_idx_a - 1;
+end
+min_motif_b = mp_motifs(min_motif_idx_b,2);
+
+% Calculate DP based on the most min value
+dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
+
+figure; plot(dp)
+
+for idx = 1:MAGIC_mp_seg_len/2:length(dp) - MAGIC_mp_seg_len/2
+    [dp_min_val, dp_min_idx] = min(dp(idx:idx+MAGIC_mp_seg_len/2 - 1));
+    dp_local_min_value(count) = dp_min_val;
+    dp_local_min_time(count) = dp_min_idx + idx;
+    count = count + 1;
+end
+hold on;
+scatter(dp_local_min_time, dp_local_min_value);
+
+dp_loc_min = transpose(vertcat(dp_local_min_time, dp_local_min_value));
+
+% Find if motif found in mp (min_motif_idx_b) exists in minimums of DP
+MAGIC_threshold = .1
+if exists()
+end
 
 % If it does, now go find all minimums that is within threshold of the
 % mp_motif
