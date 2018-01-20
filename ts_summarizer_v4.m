@@ -11,6 +11,7 @@ period = 2*pi; % Assume for now, I've already derived period from FFT
 Fs = 1/period;                    % Sampling frequency
 L = period*segments*10;                   % Length of signal
 noise = 4;
+merge_idx = 1;
  
 %% Generate ts
 [t,y] = ts_generator(Fs, L, noise);
@@ -87,7 +88,7 @@ dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_
 %dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
 
 figure; plot(dp)
-
+count = 1;
 for idx = 1:MAGIC_mp_seg_len/2:length(dp) - MAGIC_mp_seg_len/2
     [dp_min_val, dp_min_idx] = min(dp(idx:idx+MAGIC_mp_seg_len/2 - 1));
     dp_local_min_value(count) = dp_min_val;
@@ -111,40 +112,65 @@ for idx = 1:length(dp_loc_min)
     end
 end
 
-% If it does, now go find all minimums that is within threshold of the
-% mp_motif
-    % Summarize time series now
-    % For all the minimums found ex: [48, 100, 158, 204]
-    % Go and merge these and build a merged array
-    % Remove merged array from original time series now
-if ~isempty(found)
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Find all minimums
-    minimums_found = [];
-    count = 1;
-    min_thresh = MAGIC_threshold*found(2);
-    min_bound = found(2)-min_thresh;
-    max_bound = found(2)+min_thresh;
-    for idx = 1:length(dp_loc_min)
-        if (dp_loc_min(idx,2) >= min_bound) && (dp_loc_min(idx,2) <= max_bound)
-            if dp_loc_min(idx,1) ~= found(1)
-                minimums_found(count) = dp_loc_min(idx,1);
-                count = count + 1;
-            end
-        end
-    end
-    sort(minimums_found)
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Merge first the pair of found motifs(motif_a and motif_b)
-    
-% go and re run matrix profile and re-generate a matrix profile
-else
+%% Now you know where the motifs exist (motif_a and motif_b)
+merge_a = mp_motifs(min_motif_idx_a,1);
+merge_b = mp_motifs(min_motif_idx_b,1);
+
+merged_ts = [];
+
+% Caclulate averaged data
+for idx = 0:MAGIC_mp_seg_len-1
+    merged_ts(idx+1) = (y(merge_a+idx)+y(merge_b+idx))/2;
 end
 
+% Fill one node
+tree(merge_idx).data = y(merge_a:merge_a+MAGIC_mp_seg_len);
+tree(merge_idx).parent = merged_ts;
+if merge_idx == 1
+    tree(merge_idx).left_c = 0;
+    tree(merge_idx).left_r = 0;
+end
+
+merge_idx = merge_idx + 1;
+
+% Fill second node
+tree(merge_idx).data = y(merge_b:merge_b+MAGIC_mp_seg_len);
+tree(merge_idx).parent = merged_ts;
+if merge_idx == 1
+    tree(merge_idx).left_c = 0;
+    tree(merge_idx).left_r = 0;
+end
+
+%% Look for all other possible merges which is at dp_local_min_time and dp_local_min_value
+% first remove anything in dp_local_min that is within the two merged
+% values
+dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_a-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_a+MAGIC_mp_seg_len)),:);
+dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_b-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_b+MAGIC_mp_seg_len)),:);
+
+% Find all minimums within MAGIC_threshold
+dp_loc_min = dp_loc_min((dp_loc_min(:,2) < MAGIC_threshold*min_motif_a+min_motif_a),:);
+
+%% Now get rid of any that are too close to each other
+dp_loc_min = sort(dp_loc_min);
+% Find two consecutive values, merge, delete, repeat
+flag = 1;
+while flag
+    
+end
+
+% for idx = 1:length(dp_loc_min)-1
+%     if dp_loc_min(idx+1,1) - dp_loc_min(idx,1) < MAGIC_mp_seg_len-MAGIC_mp_seg_len*MAGIC_threshold
+%         dp_loc_min(idx+1,:) = [];
+%     end
+% end
 
 
 
 
 
 
-
+%%%%%%% Do this after finish merging everything
+% replace time series with merged
+%y(merge_a:merge_a+MAGIC_mp_seg_len) = NaN
+%y(merge_b:merge_b+MAGIC_mp_seg_len) = NaN
+%y(isnan(y)) = []
