@@ -118,28 +118,13 @@ merge_b = mp_motifs(min_motif_idx_b,1);
 
 merged_ts = [];
 
-% Caclulate averaged data
-for idx = 0:MAGIC_mp_seg_len-1
-    merged_ts(idx+1) = (y(merge_a+idx)+y(merge_b+idx))/2;
-end
+merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, merge_a, merge_b);
+tree = struct();
 
 % Fill one node
-tree(merge_idx).data = y(merge_a:merge_a+MAGIC_mp_seg_len);
-tree(merge_idx).parent = merged_ts;
-if merge_idx == 1
-    tree(merge_idx).left_c = 0;
-    tree(merge_idx).left_r = 0;
-end
+[tree, merge_idx] = add_tree_node(merge_a, MAGIC_mp_seg_len,merge_idx, merged_ts, y, tree);
+[tree, merge_idx] = add_tree_node(merge_b, MAGIC_mp_seg_len,merge_idx, merged_ts, y, tree);
 
-merge_idx = merge_idx + 1;
-
-% Fill second node
-tree(merge_idx).data = y(merge_b:merge_b+MAGIC_mp_seg_len);
-tree(merge_idx).parent = merged_ts;
-if merge_idx == 1
-    tree(merge_idx).left_c = 0;
-    tree(merge_idx).left_r = 0;
-end
 
 %% Look for all other possible merges which is at dp_local_min_time and dp_local_min_value
 % first remove anything in dp_local_min that is within the two merged
@@ -154,20 +139,60 @@ dp_loc_min = dp_loc_min((dp_loc_min(:,2) < MAGIC_threshold*min_motif_a+min_motif
 dp_loc_min = sort(dp_loc_min);
 % Find two consecutive values, merge, delete, repeat
 flag = 1;
+idx = 1;
 while flag
-    
+    % Find 2 consec values to merge and merge
+    if (((dp_loc_min(idx+1) - dp_loc_min(idx)) > (MAGIC_mp_seg_len - MAGIC_mp_seg_len*MAGIC_threshold)) && (dp_loc_min(idx+1) - dp_loc_min(idx)) < (MAGIC_mp_seg_len + MAGIC_mp_seg_len*MAGIC_threshold))
+        merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, dp_loc_min(idx,1), dp_loc_min(idx+1,1));
+        [tree, merge_idx] = add_tree_node(dp_loc_min(idx,1), MAGIC_mp_seg_len,merge_idx, merged_ts, y, tree);
+        [tree, merge_idx] = add_tree_node(dp_loc_min(idx+1,1), MAGIC_mp_seg_len,merge_idx, merged_ts, y, tree);
+        dp_loc_min(idx,:) = [];
+        dp_loc_min(idx, :) = [];
+    else
+        dp_loc_min(idx+1, :) = [];
+    end
+    if length(dp_loc_min) <= 2
+        flag = 0;
+    end
 end
 
-% for idx = 1:length(dp_loc_min)-1
-%     if dp_loc_min(idx+1,1) - dp_loc_min(idx,1) < MAGIC_mp_seg_len-MAGIC_mp_seg_len*MAGIC_threshold
-%         dp_loc_min(idx+1,:) = [];
-%     end
-% end
+debug_plot_subtrees(tree,y)
+
+%replace all y with parent values now
 
 
+function debug_plot_subtrees(tree,y)
+    figure;
+    hold on;
+    color = ['b','r','g','k', 'c', 'm', 'y'];
+    color_idx = 1;
+    for idx = 1:length(tree)
+        plot((tree(idx).index(1,1):tree(idx).index(1,2)), y(tree(idx).index(1,1):tree(idx).index(1,2)), color(color_idx))
+        if ~mod(idx,2) && idx > 1
+            color_idx = color_idx + 1;
+        end
+    end
+end
 
+function merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, merge_a, merge_b)
+    % Caclulate averaged data
+    for idx = 0:MAGIC_mp_seg_len-1
+        merged_ts(idx+1) = (y(merge_a+idx)+y(merge_b+idx))/2;
+    end
+end
 
-
+function [tree, merge_idx] = add_tree_node(merge, MAGIC_mp_seg_len,merge_idx, merged_ts,y, tree)
+    % Fill one node
+    tree(merge_idx).data = y(merge:merge+MAGIC_mp_seg_len-1);
+    
+    tree(merge_idx).parent_idx = merged_ts;
+    tree(merge_idx).index = [merge,merge+MAGIC_mp_seg_len-1];
+    if merge_idx == 1 || 2
+        tree(merge_idx).left_c = 0;
+        tree(merge_idx).left_c = 0;
+    end
+    merge_idx = merge_idx + 1;
+end
 
 %%%%%%% Do this after finish merging everything
 % replace time series with merged
