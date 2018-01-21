@@ -22,149 +22,118 @@ hold on;
 plot(y);
 title('Original Time Series')
 
-%% Find matrix profile
-MAGIC_mp_seg_len = 100;
-[matrixProfile, profileIndex, motifIdxs, discordIdx] = interactiveMatrixProfileVer2(y, MAGIC_mp_seg_len);
-
-% Sliding window to find local minimums
-local_min_value = [];
-local_min_time = [];
-count = 1;
-for idx = 1:MAGIC_mp_seg_len:length(matrixProfile) - MAGIC_mp_seg_len
-    [min_val, min_idx] = min(matrixProfile(idx:idx+MAGIC_mp_seg_len - 1));
-    local_min_value(count) = min_val;
-    local_min_time(count) = min_idx + idx;
-    count = count + 1;
-end
-
-% Sort local minimums and its corresponding index
-loc_min = transpose(vertcat(local_min_time, local_min_value));
-
-diff_loc_min = diff(loc_min(:,1));
-
-% for idx = 1:length(diff_loc_min)
-%     if (diff_loc_min(idx) > MAGIC_mp_seg_len)
-%         loc_min(idx) = [];
-%     end
-% end
-
-count = 1;
-exit = 1;
-while(exit)
-    if ((diff_loc_min(count) > MAGIC_mp_seg_len) || (diff_loc_min(count) < MAGIC_mp_seg_len/2))
-        loc_min(count,:) = [];
-        diff_loc_min = diff(loc_min(:,1));
-    else
-        count = count + 2;
-    end
-    if count >= length(diff_loc_min)
-        exit = 0;
-    end
-end
-
-mp_motifs = sortrows(loc_min, 1, 'ascend');
-% For now, this is good enough to know where to look for distance profile
-
-%% Debugging plots
-figure;
-plot(matrixProfile);
-hold on;
-scatter(mp_motifs(:,1),mp_motifs(:,2));
-plot(y);
-
-%% Calculate DP based on the most minimum value and consecutiveness
-% That means you have to calculate the pairs of mins
-[min_motif_a,min_motif_idx_a] = min(mp_motifs(:,2));
-
-if mod(min_motif_idx_a,2) % ODD
-    min_motif_idx_b = min_motif_idx_a + 1;
-else % EVEN
-    min_motif_idx_b = min_motif_idx_a - 1;
-end
-min_motif_b = mp_motifs(min_motif_idx_b,2);
-
-% Calculate DP based on the most min value
-dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
-%dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
-
-figure; plot(dp)
-count = 1;
-for idx = 1:MAGIC_mp_seg_len/2:length(dp) - MAGIC_mp_seg_len/2
-    [dp_min_val, dp_min_idx] = min(dp(idx:idx+MAGIC_mp_seg_len/2 - 1));
-    dp_local_min_value(count) = dp_min_val;
-    dp_local_min_time(count) = dp_min_idx + idx;
-    count = count + 1;
-end
-hold on;
-scatter(dp_local_min_time, dp_local_min_value);
-
-dp_loc_min = transpose(vertcat(dp_local_min_time, dp_local_min_value));
-
-% Find if motif found in mp (min_motif_idx_b) exists in minimums of DP
-MAGIC_threshold = .35;
-threshold = round(MAGIC_threshold *MAGIC_mp_seg_len);
-found = [];
-
-for idx = 1:length(dp_loc_min)
-    idx_test = abs(dp_loc_min(idx,1)-mp_motifs(min_motif_idx_b,1));
-    if (idx_test <= threshold)
-        found = [dp_loc_min(idx,1), dp_loc_min(idx,2)];
-    end
-end
-
-%% Now you know where the motifs exist (motif_a and motif_b)
-merge_a = mp_motifs(min_motif_idx_a,1);
-merge_b = mp_motifs(min_motif_idx_b,1);
-
+%% Variables before loop
 merged_ts = [];
-
-merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, merge_a, merge_b);
-merged_start = min(merge_a, merge_b);
+MAGIC_mp_seg_len = 100;
+MAGIC_threshold = .35;
+not_done = 1;
 tree = struct();
+%% Loop begins HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Fill one node
-[tree, merge_idx] = add_tree_node(merge_a, MAGIC_mp_seg_len,merge_idx, y, tree);
-[tree, merge_idx] = add_tree_node(merge_b, MAGIC_mp_seg_len,merge_idx, y, tree);
-[tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree)
+while not_done
+    %% Find matrix profile
+    [matrixProfile, profileIndex, motifIdxs, discordIdx] = interactiveMatrixProfileVer2(y, MAGIC_mp_seg_len);
 
-%% Look for all other possible merges which is at dp_local_min_time and dp_local_min_value
-% first remove anything in dp_local_min that is within the two merged
-% values
-dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_a-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_a+MAGIC_mp_seg_len)),:);
-dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_b-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_b+MAGIC_mp_seg_len)),:);
+    %% Find minimums in matrix profile
 
-% Find all minimums within MAGIC_threshold
-dp_loc_min = dp_loc_min((dp_loc_min(:,2) < MAGIC_threshold*min_motif_a+min_motif_a),:);
+    % Sliding window to find local minimums
+    loc_min = find_local_minimums(matrixProfile, MAGIC_mp_seg_len);
 
-%% Now get rid of any that are too close to each other
-dp_loc_min = sort(dp_loc_min);
-% Find two consecutive values, merge, delete, repeat
-flag = 1;
-idx = 1;
-while flag
-    % Find 2 consec values to merge and merge
-    if (((dp_loc_min(idx+1) - dp_loc_min(idx)) > (MAGIC_mp_seg_len - MAGIC_mp_seg_len*MAGIC_threshold)) && (dp_loc_min(idx+1) - dp_loc_min(idx)) < (MAGIC_mp_seg_len + MAGIC_mp_seg_len*MAGIC_threshold))
-        merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, dp_loc_min(idx,1), dp_loc_min(idx+1,1));
-        merged_start = min(dp_loc_min(idx,1), dp_loc_min(idx+1,1));
-        [tree, merge_idx] = add_tree_node(dp_loc_min(idx,1), MAGIC_mp_seg_len,merge_idx, y, tree);
-        [tree, merge_idx] = add_tree_node(dp_loc_min(idx+1,1), MAGIC_mp_seg_len,merge_idx, y, tree);
-        [tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree);
-        dp_loc_min(idx,:) = [];
-        dp_loc_min(idx, :) = [];
-    else
-        dp_loc_min(idx+1, :) = [];
+    % Find mp motif locations to test against DP
+    mp_motifs = find_mp_motif_loc(loc_min, MAGIC_mp_seg_len);
+
+    %% Debugging plots
+    figure;
+    plot(matrixProfile);
+    hold on;
+    scatter(mp_motifs(:,1),mp_motifs(:,2));
+    plot(y);
+
+
+    %% Now we can compare found motif and DP
+    % Calculate DP based on the most minimum value and consecutiveness
+    % That means you have to calculate the pairs of mins
+
+    [min_motif_a,min_motif_idx_a, min_motif_b, min_motif_idx_b] = find_min_motif(mp_motifs);
+
+    % Calculate DP based on the most min value
+    dp = findNN(transpose(y),transpose(y(mp_motifs(min_motif_idx_a,1):mp_motifs(min_motif_idx_a,1)+MAGIC_mp_seg_len-1)));
+
+    % Plot DP
+    figure; plot(dp);
+
+    % Find all minimums in DP
+    dp_loc_min = find_dp_min(MAGIC_mp_seg_len, dp);
+
+    % Find if motif found in mp (min_motif_idx_b) exists in minimums of DP
+    found = motif_in_dp(MAGIC_threshold, MAGIC_mp_seg_len, mp_motifs, min_motif_idx_b, dp_loc_min);
+
+    %% Now you know where first merge exists (motif_a and motif_b)
+    merge_a = mp_motifs(min_motif_idx_a,1);
+    merge_b = mp_motifs(min_motif_idx_b,1);
+
+    merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, merge_a, merge_b);
+    merged_start = min(merge_a, merge_b);
+
+
+    % Fill one node
+    [tree, merge_idx] = add_tree_node(merge_a, MAGIC_mp_seg_len,merge_idx, y, tree);
+    [tree, merge_idx] = add_tree_node(merge_b, MAGIC_mp_seg_len,merge_idx, y, tree);
+    [tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree);
+
+    %% Look for all other possible merges from DP
+    % first remove anything in dp_local_min that is within the two merged
+    % values
+    dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_a-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_a+MAGIC_mp_seg_len)),:);
+    %dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_b-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_b+MAGIC_mp_seg_len)),:);
+
+    % Find all minimums within MAGIC_threshold
+    dp_loc_min = dp_loc_min((dp_loc_min(:,2) < MAGIC_threshold*min_motif_a+min_motif_a),:);
+    
+    %% Now get rid of any minimums in DP that are too close to each other AND merge
+    dp_loc_min = sort(dp_loc_min);
+    % Find two consecutive values, merge, delete, repeat
+    flag = 1;
+    idx = 1;
+    while flag
+        % Find 2 consec values to merge and merge
+        if (((dp_loc_min(idx+1) - dp_loc_min(idx)) > (MAGIC_mp_seg_len - MAGIC_mp_seg_len*MAGIC_threshold)) && (dp_loc_min(idx+1) - dp_loc_min(idx)) < (MAGIC_mp_seg_len + MAGIC_mp_seg_len*MAGIC_threshold))
+            merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, dp_loc_min(idx,1), dp_loc_min(idx+1,1));
+            merged_start = min(dp_loc_min(idx,1), dp_loc_min(idx+1,1));
+            [tree, merge_idx] = add_tree_node(dp_loc_min(idx,1), MAGIC_mp_seg_len,merge_idx, y, tree);
+            [tree, merge_idx] = add_tree_node(dp_loc_min(idx+1,1), MAGIC_mp_seg_len,merge_idx, y, tree);
+            [tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree);
+            dp_loc_min(idx,:) = [];
+            dp_loc_min(idx, :) = [];
+        else
+            dp_loc_min(idx+1, :) = [];
+        end
+        if length(dp_loc_min) <= 2
+            flag = 0;
+        end
     end
-    if length(dp_loc_min) <= 2
-        flag = 0;
+
+    %debug_plot_subtrees(tree,y);
+
+    %% replace all y with parent values now
+    % find all tree values with parent_idx=0 and replace them in Y
+    for idx = 1:length(tree)
+        if tree(idx).parent_idx == 0
+            y(tree(tree(idx).left_c).index(1,1):tree(tree(idx).left_c).index(1,2)) = NaN;
+            y(tree(tree(idx).right_c).index(1,1):tree(tree(idx).left_c).index(1,2)) = NaN;
+            replace_idx = min(tree(tree(idx).right_c).index(1,1), tree(tree(idx).right_c).index(1,1));
+            y(replace_idx:replace_idx+length(tree(idx).data)-1) = tree(idx).data;
+            y(isnan(y)) = [];
+        end
     end
 end
 
-debug_plot_subtrees(tree,y)
-
-%replace all y with parent values now
-% find all tree values with parent_idx=0 and replace them in Y
+% LOOP END
 
 
+%% Functions here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function debug_plot_subtrees(tree,y)
     figure;
     hold on;
@@ -210,6 +179,73 @@ function [tree, merge_idx] = add_parent_node(merge_ts, merge, MAGIC_mp_seg_len,m
     tree(merge_idx).left_c = merge_idx-1;
     tree(merge_idx).right_c = merge_idx-2;
     merge_idx = merge_idx + 1;
+end
+
+function loc_min = find_local_minimums(ts, MAGIC_mp_seg_len)
+    % Sliding window to find local minimums
+    local_min_value = [];
+    local_min_time = [];
+    count_idx = 1;
+    for loop_idx = 1:MAGIC_mp_seg_len:length(ts) - MAGIC_mp_seg_len
+        [loc_min_val, loc_min_idx] = min(ts(loop_idx:loop_idx+MAGIC_mp_seg_len - 1));
+        local_min_value(count_idx) = loc_min_val;
+        local_min_time(count_idx) = loc_min_idx + loop_idx;
+        count_idx = count_idx + 1;
+    end
+    % Sort local minimums and its corresponding index
+    loc_min = transpose(vertcat(local_min_time, local_min_value));
+end
+
+function mp_motifs = find_mp_motif_loc(loc_min, MAGIC_mp_seg_len)
+    count = 1;
+    exit = 1;
+    diff_loc_min = diff(loc_min(:,1));
+    while(exit)
+        if ((diff_loc_min(count) > MAGIC_mp_seg_len) || (diff_loc_min(count) < MAGIC_mp_seg_len/2))
+            loc_min(count,:) = [];
+            diff_loc_min = diff(loc_min(:,1));
+        else
+            count = count + 2;
+        end
+        if count >= length(diff_loc_min)
+            exit = 0;
+        end
+    end
+
+    mp_motifs = sortrows(loc_min, 1, 'ascend');
+end
+
+function [min_motif_a,min_motif_idx_a, min_motif_b, min_motif_idx_b] = find_min_motif(mp_motifs)
+    [min_motif_a,min_motif_idx_a] = min(mp_motifs(:,2));
+    if mod(min_motif_idx_a,2) % ODD
+        min_motif_idx_b = min_motif_idx_a + 1;
+    else % EVEN
+        min_motif_idx_b = min_motif_idx_a - 1;
+    end
+    min_motif_b = mp_motifs(min_motif_idx_b,2);
+end
+
+function dp_loc_min = find_dp_min(MAGIC_mp_seg_len, dp)
+    count = 1;
+    for idx = 1:MAGIC_mp_seg_len/2:length(dp) - MAGIC_mp_seg_len/2
+        [dp_min_val, dp_min_idx] = min(dp(idx:idx+MAGIC_mp_seg_len/2 - 1));
+        dp_local_min_value(count) = dp_min_val;
+        dp_local_min_time(count) = dp_min_idx + idx;
+        count = count + 1;
+    end
+    dp_loc_min = transpose(vertcat(dp_local_min_time, dp_local_min_value));
+end
+
+function found = motif_in_dp(MAGIC_threshold, MAGIC_mp_seg_len, mp_motifs, min_motif_idx_b, dp_loc_min)
+    % Find if motif found in mp (min_motif_idx_b) exists in minimums of DP
+    threshold = round(MAGIC_threshold *MAGIC_mp_seg_len);
+    found = [];
+    for idx = 1:length(dp_loc_min)
+        idx_test = abs(dp_loc_min(idx,1)-mp_motifs(min_motif_idx_b,1));
+        if (idx_test <= threshold)
+            found = [dp_loc_min(idx,1), dp_loc_min(idx,2)];
+        end
+    end
 end
 
 %%%%%%% Do this after finish merging everything
