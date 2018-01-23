@@ -40,16 +40,16 @@ anytimeMode = 2; % 1: original with mass O(n^2 log n);
 
 %% check input
 dataLen = length(data);
-if subLen > dataLen / 2
-    error(['Error: Time series is too short ', ...
-        'relative to desired subsequence length']);
-end
+%if subLen > dataLen / 2
+%    error(['Error: Time series is too short ', ...
+%        'relative to desired subsequence length']);
+%end
 if subLen < 4
     error('Error: Subsequence length must be at least 4');
 end
-if subLen > dataLen / 20
-    error('Error: subsequenceLength > dataLength / 20')
-end
+%if subLen > dataLen / 20
+%    error('Error: subsequenceLength > dataLength / 20')
+%end
 if dataLen == size(data, 2)
     data = data';
 end
