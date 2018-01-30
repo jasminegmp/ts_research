@@ -1,5 +1,5 @@
 %function jasmine_testFastMPdist()
-DEBUG = 1;
+DEBUG = 0;
 
 %% Clean
 clean_up_workspace();
@@ -67,7 +67,7 @@ while pattern_1_start + MAGIC_mp_seg_len < total_length
     end
 
     if ~isnan(mp_motif_loc)
-        dist = fastMPdist_SS(ts_1(pattern_1_start:pattern_1_start+MAGIC_mp_seg_len), ts_1(mp_motif_loc:mp_motif_loc+MAGIC_mp_seg_len),SL)
+        dist = fastMPdist_SS(ts_1(pattern_1_start:pattern_1_start+MAGIC_mp_seg_len-1), ts_1(mp_motif_loc:mp_motif_loc+MAGIC_mp_seg_len-1),SL)
         distance_matrix = [distance_matrix;dist]
         distance_matrix_p1 = [distance_matrix_p1;pattern_1_start];
         distance_matrix_p2 = [distance_matrix_p2;mp_motif_loc];
@@ -92,9 +92,27 @@ end
     % this means... update row with merged with a NaN
     % update the distance of the row BEFORE NaN and AFTER NaN
 % repeat UNTIL all values in distance matrix is NaN
-
-while (1)
+not_exit = 1;
+while (not_exit)
     [min_val, min_idx] = min(distance_matrix);
+    temp_flag = 1;
+    while(temp_flag)
+         t_seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1)
+         t_seg_1(isinf(t_seg_1)) = [];
+         t_seg_2 = ts_1(distance_matrix_p2(min_idx):distance_matrix_p2(min_idx)+MAGIC_mp_seg_len-1)
+         t_seg_2(isinf(t_seg_2)) = [];
+
+         if isempty(t_seg_1) || isempty(t_seg_2)
+             distance_matrix(min_idx) = NaN;
+             [min_val, min_idx] = min(distance_matrix);
+         else
+             temp_flag = 0
+         end
+         if isnan(distance_matrix)
+            not_exit = 0;
+            break;
+         end
+    end
     
     % Fill one node
     [tree, merge_idx] = add_tree_node(distance_matrix_p1(min_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level);
@@ -121,19 +139,16 @@ while (1)
     end
 
     
-    % Update time series
-   ts_1(distance_matrix_p2(min_idx):distance_matrix_p2(min_idx)+MAGIC_mp_seg_len-1) = NaN;
-   ts_1(isnan(ts_1)) = [];
-            
+
     % Update distance array 
     
-    distance_matrix(min_idx) = NaN;
-    distance_matrix_p1(min_idx) = NaN;
-    distance_matrix_p2(min_idx) = NaN;
+    %distance_matrix(min_idx) = NaN;
+    %distance_matrix_p1(min_idx) = NaN;
+    %distance_matrix_p2(min_idx) = NaN;
     
     %recalculate MP distance
     
-%     % previous distance
+     % previous distance
 %     if min_idx > 1
 %         prev = min_idx - 1;
 %         dist = fastMPdist_SS(ts_1(merge_1:merge_1+MAGIC_mp_seg_len), ts_1(merge_2:merge_2+MAGIC_mp_seg_len),SL);
@@ -143,163 +158,36 @@ while (1)
 %     end
 %     
 %     %post distance
-%     if min_idx <= length(distance_matrix)
-%         post = min_idx + 1;
-%         dist = fastMPdist_SS(ts_1(merge_1:merge_1+MAGIC_mp_seg_len), ts_1(merge_2:merge_2+MAGIC_mp_seg_len),SL);
+    % Update time series
+
+     if min_idx < length(distance_matrix)
+         post = min_idx + 1;
+         temp = distance_matrix_p2(min_idx);
+        % distance_matrix_p1(post) = distance_matrix_p1(min_idx)+MAGIC_mp_seg_len;
+         distance_matrix_p2(min_idx) = distance_matrix_p1(post);
+         seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1)
+         seg_1(isinf(seg_1)) = 0
+         seg_2 = ts_1(distance_matrix_p2(min_idx):distance_matrix_p2(min_idx)+MAGIC_mp_seg_len-1)
+         seg_2(isinf(seg_2)) = 0
+         
+         dist = fastMPdist_SS(seg_1, seg_2,SL);
+         distance_matrix(min_idx) = dist(1);
 %         distance_matrix = [distance_matrix;dist];
 %         distance_matrix_p1 = [distance_matrix_p1;pattern_1_start];
 %         distance_matrix_p2 = [distance_matrix_p2;mp_motif_loc];
-%     end
-
-    level = level + 1;
-
-end
-%%
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-while(1)
-    if ~isempty(found)
-        %% Now you know where first merge exists (motif_a and motif_b)
-        merge_a = mp_motifs(min_motif_idx_a,1);
-        merge_b = mp_motifs(min_motif_idx_b,1);
-
-        merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, merge_a, merge_b);
-        merged_start = min(merge_a, merge_b);
-
-
-        % Fill one node
-        [tree, merge_idx] = add_tree_node(merge_a, MAGIC_mp_seg_len,merge_idx, y, tree, level);
-        [tree, merge_idx] = add_tree_node(merge_b, MAGIC_mp_seg_len,merge_idx, y, tree, level);
-        [tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree, level);
-
-        %% Look for all other possible merges from DP
-        % first remove anything in dp_local_min that is within the two merged
-        % values
-        dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_a-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_a+MAGIC_mp_seg_len)),:);
-        dp_loc_min = dp_loc_min((dp_loc_min(:,1)<merge_b-MAGIC_mp_seg_len) | (dp_loc_min(:,1)>(merge_b+MAGIC_mp_seg_len)),:);
-
-        % Find all minimums within MAGIC_threshold
-        dp_loc_min = dp_loc_min((dp_loc_min(:,2) <= MAGIC_threshold*min_motif_a+min_motif_a),:);
-
-
-
-        %% Now recursively merge the ones that are within DP right now
-
-        % Now get rid of any minimums in DP that are too close to each other AND merge
-
-        %dp_loc_min = clean_dp(dp_loc_min, MAGIC_mp_seg_len, MAGIC_threshold);
-
-
-        flag = 1;
-        while flag
-            % make sure dp_loc_min isn't empty, otherwise exist
-            if isempty(dp_loc_min)
-                break;
-            end
-            if length(dp_loc_min) == 2 % only has one value
-                break;
-            end
-            %look for values to merge
-            found = 0;
-            for idx = 1:length(dp_loc_min)- 1
-                if dp_loc_min(idx + 1, 1) - dp_loc_min(idx,1) >= MAGIC_mp_seg_len - MAGIC_mp_seg_len*MAGIC_threshold
-                    if dp_loc_min(idx + 1, 1) - dp_loc_min(idx,1) <= MAGIC_mp_seg_len + MAGIC_mp_seg_len*MAGIC_threshold
-                        found = idx;
-                        break;
-                    end
-                end
-            end
-            if found == 0 % didn't find any value to merge, so exit
-                break;
-            end
-            % found value to merge
-            merged_ts = calc_avg_ts(y, MAGIC_mp_seg_len, dp_loc_min(found,1), dp_loc_min(found+1,1));
-            merged_start = min(dp_loc_min(found,1), dp_loc_min(found+1,1));
-            [tree, merge_idx] = add_tree_node(dp_loc_min(found,1), MAGIC_mp_seg_len,merge_idx, y, tree, level);
-            [tree, merge_idx] = add_tree_node(dp_loc_min(found+1,1), MAGIC_mp_seg_len,merge_idx, y, tree, level);
-            [tree, merge_idx] = add_parent_node(merged_ts, merged_start, MAGIC_mp_seg_len,merge_idx, tree, level);
-            % pop off merged values
-            dp_loc_min(found,:) = [];
-            dp_loc_min(found, :) = [];
-            % repeat
-        end
-
-
-
-        %% Replace y with merged
-        figure;
-        hold on;
-        plot(y, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.2);
-        for idx = 1:length(tree)
-            if (tree(idx).parent_idx == 0) && (tree(idx).level == level + 1)
-                y(tree(tree(idx).left_c).index(1,1):tree(tree(idx).left_c).index(1,2)) = NaN;
-                y(tree(tree(idx).right_c).index(1,1):tree(tree(idx).left_c).index(1,2)) = NaN;
-                replace_idx = min(tree(tree(idx).right_c).index(1,1), tree(tree(idx).right_c).index(1,1));
-                y(replace_idx:replace_idx+length(tree(idx).data)-1) = tree(idx).data;
-                y(isnan(y)) = [];
-            end
-        end
+     else
+     	distance_matrix(min_idx) = NaN;
         
-        %plot(unmodified_y);
-        title(level);
-        for idx = 1:length(tree)
-            if (tree(idx).level == level) || (tree(idx).level == level+1)
-                time = tree(idx).index(1,1):1:tree(idx).index(1,2);
-                if (tree(idx).parent_idx == 0) && (tree(idx).level == level+1)
-                    plot(time, tree(idx).data, 'Color', [1 0 0], 'LineWidth', 1);
-                elseif (tree(idx).level == level) && (tree(idx).parent_idx ~= 0)
-                    plot(time, tree(idx).data, 'Color', [0 0 1], 'LineWidth', 0.7);
-                end
-            end
-        end
-    end
-    level = level + 1;
-end
+     end
+     ts_1(distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1:temp+MAGIC_mp_seg_len-1) = NaN;
+     ts_1(isnan(ts_1)) = Inf;
 
+            
+   
+    %figure; plot(ts_1)
+    level = level + 1;
+
+end
 % LOOP END
 
 
