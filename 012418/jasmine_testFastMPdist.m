@@ -171,38 +171,43 @@ while (not_exit)
      if min_idx < length(distance_matrix)
          
          if isnan(distance_matrix(t2))
-            while(isnan(distance_matrix(t2)) && t2 < length(ts_1))
+            while(isnan(distance_matrix(t2)) && t2 < length(distance_matrix))
                 t2 = t2 + 1;
             end
          end
          t3 = t2 + 1;
-         if isnan(distance_matrix(t3))
-            while(isnan(distance_matrix(t3)) && t3 < length(ts_1))
-                t3 = t3 + 1;
-            end
+         if t3 < length(distance_matrix)
+             if isnan(distance_matrix(t3))
+                while(isnan(distance_matrix(t3)) && t3 < length(distance_matrix))
+                    t3 = t3 + 1;
+                end
+             end
          end
-         if t3 > length(ts_1) || t2 > length(ts_1)
-             return 
+         if t3 > length(distance_matrix) || t2 > length(distance_matrix)
+             if t3 > length(distance_matrix)
+                 distance_matrix(t2) = NaN;
+             end
+         else
+             distance_matrix(t2) = NaN;
+             %temp = distance_matrix_p2(min_idx);
+             %distance_matrix_p2(min_idx) = distance_matrix_p1(post);
+             seg_1 = ts_1(distance_matrix_p1(t1):distance_matrix_p1(t1)+MAGIC_mp_seg_len-1);
+             seg_1(isinf(seg_1)) = 0;
+             seg_2 = ts_1(distance_matrix_p1(t3):distance_matrix_p1(t3)+MAGIC_mp_seg_len-1);
+             seg_2(isinf(seg_2)) = 0;
+
+             dist = fastMPdist_SS(seg_1, seg_2,SL);
+             distance_matrix(t1) = dist(1);
          end
-         distance_matrix(t2) = NaN;
-         %temp = distance_matrix_p2(min_idx);
-         %distance_matrix_p2(min_idx) = distance_matrix_p1(post);
-         seg_1 = ts_1(distance_matrix_p1(t1):distance_matrix_p1(t1)+MAGIC_mp_seg_len-1);
-         seg_1(isinf(seg_1)) = 0;
-         seg_2 = ts_1(distance_matrix_p1(t3):distance_matrix_p1(t3)+MAGIC_mp_seg_len-1);
-         seg_2(isinf(seg_2)) = 0;
-         
-         dist = fastMPdist_SS(seg_1, seg_2,SL);
-         distance_matrix(t1) = dist(1);
 
      else
      	distance_matrix(t1) = NaN;
         
      end
-     if (distance_matrix_p1(t1)+MAGIC_mp_seg_len)  length(ts_1)
-        ts_1(distance_matrix_p1(t1):distance_matrix_p1(t1)+MAGIC_mp_seg_len-1) = NaN;
+     if (distance_matrix_p1(t2)+MAGIC_mp_seg_len) < length(ts_1)
+        ts_1(distance_matrix_p1(t2):distance_matrix_p1(t2)+MAGIC_mp_seg_len-1) = NaN;
      else
-          ts_1(distance_matrix_p1(min_idx):end) = NaN;
+          ts_1(distance_matrix_p1(t2):end) = NaN;
      end
      ts_1(isnan(ts_1)) = Inf;
 
