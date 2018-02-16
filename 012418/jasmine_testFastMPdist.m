@@ -1,20 +1,23 @@
 %function jasmine_testFastMPdist()
-DEBUG = 0;
+DEBUG = 1;
 
 %% Clean
 clean_up_workspace();
 close all
 
-ts_1 = load('test.txt');
+%ts_1 = load('test.txt');
+load('800m.mat');
+ts_1 = val;
+ts_1 = transpose(ts_1);
 
-total_length = 3000;
+total_length = 1280;
 ts_1 = ts_1(1:total_length);
 seg_len = 100;
 figure;
 plot(ts_1);
 %title('Time series 1');
 hold on;
-MAGIC_mp_seg_len = 100;
+MAGIC_mp_seg_len = 200;
 pattern_1_start = 1;
 ts_2 = ts_1(pattern_1_start:pattern_1_start+seg_len);
 plot(ts_2)
@@ -38,75 +41,75 @@ tree = struct();
 %% Loop begins HERE
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-while pattern_1_start + MAGIC_mp_seg_len < total_length
-    %% Find matrix profile
-    matrixProfile = fastMPdist_SS(ts_1, ts_2, SL);
-
-    %% Find minimums in matrix profile
-
-    % Sliding window to find local minimums
-    loc_min = find_local_minimums(matrixProfile, MAGIC_mp_seg_len);
-    if DEBUG
-        figure;
-        plot (matrixProfile);
-        hold on;
-        scatter(loc_min(:,1), loc_min(:,2))
-        title('MPdist using MASS and Local Minimums');
-    end
-    % Find mp motif locations to test against DP
-    [mp_motif_loc, mp_motif_val] = find_mp_motif_loc(loc_min, MAGIC_mp_seg_len, pattern_1_start);
-
-    %% Debugging plots
-    if DEBUG
-        figure;
-        plot(matrixProfile);
-        hold on;
-        scatter(pattern_1_start,matrixProfile(pattern_1_start));
-        scatter(mp_motif_loc,mp_motif_val);
-        title('MPdist using MASS and Identified Locations for Merge');
-    end
-
-    if ~isnan(mp_motif_loc)
-        dist = fastMPdist_SS(ts_1(pattern_1_start:pattern_1_start+MAGIC_mp_seg_len-1), ts_1(mp_motif_loc:mp_motif_loc+MAGIC_mp_seg_len-1),SL)
-        distance_matrix = [distance_matrix;dist]
-        distance_matrix_p1 = [distance_matrix_p1;pattern_1_start];
-        distance_matrix_p2 = [distance_matrix_p2;mp_motif_loc];
-        pattern_1_start = mp_motif_loc+MAGIC_mp_seg_len;
-        
-    else
-        pattern_1_start = pattern_1_start+MAGIC_mp_seg_len;
-        print("OH NO!!")
-    end
+%while pattern_1_start + MAGIC_mp_seg_len < total_length
+%     %% Find matrix profile
+%     matrixProfile = fastMPdist_SS(ts_1, ts_2, SL);
+% 
+%     %% Find minimums in matrix profile
+% 
+%     % Sliding window to find local minimums
+%     loc_min = find_local_minimums(matrixProfile, MAGIC_mp_seg_len);
+%     if DEBUG
+%         figure;
+%         plot (matrixProfile);
+%         hold on;
+%         scatter(loc_min(:,1), loc_min(:,2))
+%         title('MPdist using MASS and Local Minimums');
+%     end
+%     % Find mp motif locations to test against DP
+%     [mp_motif_loc, mp_motif_val] = find_mp_motif_loc(loc_min, MAGIC_mp_seg_len, pattern_1_start);
+% 
+%     %% Debugging plots
+%     if DEBUG
+%         figure;
+%         plot(matrixProfile);
+%         hold on;
+%         scatter(pattern_1_start,matrixProfile(pattern_1_start));
+%         scatter(mp_motif_loc,mp_motif_val);
+%         title('MPdist using MASS and Identified Locations for Merge');
+%     end
+    % divide up ts into segments
     
+    % calc fastMPdist_SS based on it
+    
+for idx = 1:MAGIC_mp_seg_len:total_length - MAGIC_mp_seg_len*2
+    beg = idx;
+    mid = idx + MAGIC_mp_seg_len;
+    fin = idx + MAGIC_mp_seg_len*2;
+    dist = fastMPdist_SS(ts_1(beg:mid-1), ts_1(mid:fin-1),SL);
+    distance_matrix = [distance_matrix;dist];
+    distance_matrix_p1 = [distance_matrix_p1;beg];
+    distance_matrix_p2 = [distance_matrix_p2;mid];
 
-    if pattern_1_start + MAGIC_mp_seg_len < total_length
-        ts_2 = ts_1(pattern_1_start:pattern_1_start+seg_len);
-    end 
+%     if pattern_1_start + MAGIC_mp_seg_len < total_length
+%         ts_2 = ts_1(pattern_1_start:pattern_1_start+seg_len);
+%     end 
 %%
 end
 % Now found all the possible merge areas
 
 %% Now go find minimum in distance matrix
-% Merge minimum - select one of the time series
+% Merge minimum - select one of the time serieså
 % update distance matrix with newly merged values - 
     % this means... update row with merged with a NaN
     % update the distance of the row BEFORE NaN and AFTER NaN
 % repeat UNTIL all values in distance matrix is NaN
 not_exit = 1;
+merged_sum = []
 while (not_exit)
     [min_val, min_idx] = min(distance_matrix);
     temp_flag = 1;
     while(temp_flag)
-         t_seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1)
+         t_seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1);
          t_seg_1(isinf(t_seg_1)) = [];
-         t_seg_2 = ts_1(distance_matrix_p2(min_idx):distance_matrix_p2(min_idx)+MAGIC_mp_seg_len-1)
+         t_seg_2 = ts_1(distance_matrix_p1(min_idx)+MAGIC_mp_seg_len:distance_matrix_p1(min_idx)+MAGIC_mp_seg_len*2-1);
          t_seg_2(isinf(t_seg_2)) = [];
 
          if isempty(t_seg_1) || isempty(t_seg_2)
              distance_matrix(min_idx) = NaN;
              [min_val, min_idx] = min(distance_matrix);
          else
-             temp_flag = 0
+             temp_flag = 0;
          end
          if isnan(distance_matrix)
             not_exit = 0;
@@ -116,7 +119,7 @@ while (not_exit)
     
     % Fill one node
     [tree, merge_idx] = add_tree_node(distance_matrix_p1(min_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level);
-    [tree, merge_idx] = add_tree_node(distance_matrix_p2(min_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level);
+    [tree, merge_idx] = add_tree_node(distance_matrix_p1(min_idx)+MAGIC_mp_seg_len, MAGIC_mp_seg_len,merge_idx, ts_1, tree, level);
     
     % merge, just choose the first one
     merged_ts = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1);
@@ -137,7 +140,8 @@ while (not_exit)
             end
         end
     end
-
+   merged_sum = [merged_sum;nansum(distance_matrix)];
+   fprintf("MERGED: %i\n", nansum(distance_matrix))
     
 
     % Update distance array 
@@ -159,37 +163,51 @@ while (not_exit)
 %     
 %     %post distance
     % Update time series
-
-     if min_idx < length(distance_matrix)
-         post = min_idx + 1;
-         temp = distance_matrix_p2(min_idx);
-        % distance_matrix_p1(post) = distance_matrix_p1(min_idx)+MAGIC_mp_seg_len;
-         distance_matrix_p2(min_idx) = distance_matrix_p1(post);
-         seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1)
-         seg_1(isinf(seg_1)) = 0
-         seg_2 = ts_1(distance_matrix_p2(min_idx):distance_matrix_p2(min_idx)+MAGIC_mp_seg_len-1)
-         seg_2(isinf(seg_2)) = 0
+     post = min_idx + 1;
+     if post < length(distance_matrix)
+         
+         if isnan(distance_matrix(post))
+            while(isnan(distance_matrix(post)) && post+MAGIC_mp_seg_len < length(ts_1))
+                post = post + 1;
+                
+            end
+         end
+         if post > length(ts_1)
+             return 
+         end
+         distance_matrix(min_idx+1) = NaN;
+         %temp = distance_matrix_p2(min_idx);
+         %distance_matrix_p2(min_idx) = distance_matrix_p1(post);
+         seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1);
+         seg_1(isinf(seg_1)) = 0;
+         seg_2 = ts_1(distance_matrix_p1(post):distance_matrix_p1(post)+MAGIC_mp_seg_len-1);
+         seg_2(isinf(seg_2)) = 0;
          
          dist = fastMPdist_SS(seg_1, seg_2,SL);
          distance_matrix(min_idx) = dist(1);
-%         distance_matrix = [distance_matrix;dist];
-%         distance_matrix_p1 = [distance_matrix_p1;pattern_1_start];
-%         distance_matrix_p2 = [distance_matrix_p2;mp_motif_loc];
+
      else
      	distance_matrix(min_idx) = NaN;
         
      end
-     ts_1(distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1:temp+MAGIC_mp_seg_len-1) = NaN;
+     if (distance_matrix_p1(min_idx)+MAGIC_mp_seg_len) < length(ts_1)
+        ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1) = NaN;
+     else
+          ts_1(distance_matrix_p1(min_idx):end) = NaN;
+     end
      ts_1(isnan(ts_1)) = Inf;
 
-            
+
    
     %figure; plot(ts_1)
     level = level + 1;
 
+    
+
 end
 % LOOP END
-
+figure;
+plot(merged_sum)
 
 %% Functions here
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -204,7 +222,7 @@ function debug_plot_subtrees(tree,y, level)
     color_idx = 1;
     for idx = 1:length(tree)
         if (tree(idx).level == level) && (tree(idx).parent_idx ~= 0)
-            plot((tree(idx).index(1,1):tree(idx).index(1,2)), y(tree(idx).index(1,1):tree(idx).index(1,2)))
+            plot((tree(idx).index(1,1):tree(idx).index(1,2)), y(tree(idx).index(1,1):tree(idx).index(1,2)));
             if ~mod(idx,2) && idx > 1
                 color_idx = color_idx + 1;
             end
