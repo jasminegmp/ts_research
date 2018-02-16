@@ -6,20 +6,20 @@ clean_up_workspace();
 close all
 
 %ts_1 = load('test.txt');
-load('800m.mat');
-ts_1 = val;
+load('ecg_clean.mat');
+ts_1 = ts;
 ts_1 = transpose(ts_1);
 
-total_length = 1280;
+total_length = 60000;
 ts_1 = ts_1(1:total_length);
-seg_len = 100;
+seg_len = 1000;
 figure;
 plot(ts_1);
 %title('Time series 1');
 hold on;
-MAGIC_mp_seg_len = 200;
-pattern_1_start = 1;
-ts_2 = ts_1(pattern_1_start:pattern_1_start+seg_len);
+MAGIC_mp_seg_len = seg_len;
+
+ts_2 = ts_1(1:seg_len-1);
 plot(ts_2)
 title('Time series 1 and 2');
 xlim([0 length(ts_1)]);
@@ -33,7 +33,7 @@ not_done = 1;
 tree = struct();
 level = 1;
 distance_matrix = [];
-distance_matrix_p2 = [];
+%distance_matrix_p2 = [];
 distance_matrix_p1 = [];
 merge_idx = 1;
 tree = struct();
@@ -79,7 +79,7 @@ for idx = 1:MAGIC_mp_seg_len:total_length - MAGIC_mp_seg_len*2
     dist = fastMPdist_SS(ts_1(beg:mid-1), ts_1(mid:fin-1),SL);
     distance_matrix = [distance_matrix;dist];
     distance_matrix_p1 = [distance_matrix_p1;beg];
-    distance_matrix_p2 = [distance_matrix_p2;mid];
+    %distance_matrix_p2 = [distance_matrix_p2;mid];
 
 %     if pattern_1_start + MAGIC_mp_seg_len < total_length
 %         ts_2 = ts_1(pattern_1_start:pattern_1_start+seg_len);
@@ -163,35 +163,44 @@ while (not_exit)
 %     
 %     %post distance
     % Update time series
-     post = min_idx + 1;
-     if post < length(distance_matrix)
+     post = min_idx + 2;
+     t1 = min_idx
+     t2 = min_idx+1
+    
+    
+     if min_idx < length(distance_matrix)
          
-         if isnan(distance_matrix(post))
-            while(isnan(distance_matrix(post)) && post+MAGIC_mp_seg_len < length(ts_1))
-                post = post + 1;
-                
+         if isnan(distance_matrix(t2))
+            while(isnan(distance_matrix(t2)) && t2 < length(ts_1))
+                t2 = t2 + 1;
             end
          end
-         if post > length(ts_1)
+         t3 = t2 + 1;
+         if isnan(distance_matrix(t3))
+            while(isnan(distance_matrix(t3)) && t3 < length(ts_1))
+                t3 = t3 + 1;
+            end
+         end
+         if t3 > length(ts_1) || t2 > length(ts_1)
              return 
          end
-         distance_matrix(min_idx+1) = NaN;
+         distance_matrix(t2) = NaN;
          %temp = distance_matrix_p2(min_idx);
          %distance_matrix_p2(min_idx) = distance_matrix_p1(post);
-         seg_1 = ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1);
+         seg_1 = ts_1(distance_matrix_p1(t1):distance_matrix_p1(t1)+MAGIC_mp_seg_len-1);
          seg_1(isinf(seg_1)) = 0;
-         seg_2 = ts_1(distance_matrix_p1(post):distance_matrix_p1(post)+MAGIC_mp_seg_len-1);
+         seg_2 = ts_1(distance_matrix_p1(t3):distance_matrix_p1(t3)+MAGIC_mp_seg_len-1);
          seg_2(isinf(seg_2)) = 0;
          
          dist = fastMPdist_SS(seg_1, seg_2,SL);
-         distance_matrix(min_idx) = dist(1);
+         distance_matrix(t1) = dist(1);
 
      else
-     	distance_matrix(min_idx) = NaN;
+     	distance_matrix(t1) = NaN;
         
      end
-     if (distance_matrix_p1(min_idx)+MAGIC_mp_seg_len) < length(ts_1)
-        ts_1(distance_matrix_p1(min_idx):distance_matrix_p1(min_idx)+MAGIC_mp_seg_len-1) = NaN;
+     if (distance_matrix_p1(t1)+MAGIC_mp_seg_len)  length(ts_1)
+        ts_1(distance_matrix_p1(t1):distance_matrix_p1(t1)+MAGIC_mp_seg_len-1) = NaN;
      else
           ts_1(distance_matrix_p1(min_idx):end) = NaN;
      end
