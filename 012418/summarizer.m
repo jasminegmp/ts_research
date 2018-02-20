@@ -14,15 +14,16 @@ total_length = 60000;
 ts_1 = ts_1(1:total_length);
 seg_len = 1000;
 figure;
-plot(ts_1);
+plot(ts_1(1:55000));
 %title('Time series 1');
 hold on;
 MAGIC_mp_seg_len = seg_len;
 
-ts_2 = ts_1(1:seg_len-1);
-plot(ts_2)
-title('Time series 1 and 2');
-xlim([0 length(ts_1)]);
+%ts_2 = ts_1(1:seg_len-1);
+%plot(ts_2)
+title('Original Time series');
+xlim([0 length(ts_1(1:55000))]);
+ylim([-600 600]);
 SL = MAGIC_mp_seg_len / 2;
 
 %% Variables before loop
@@ -82,91 +83,112 @@ while (not_exit)
     end
     % If you get here, you chose last index as min_idx
     % Set min_val to NaN and continue on
-    distance_matrix(min_idx) = NaN;
+    if min_idx > length(distance_matrix)-3
+        distance_matrix(min_idx) = NaN;
+    end
    end
+   if isnan(distance_matrix(min_idx))
+   else
 
-   % Merge min_idx and next_idx
-   % Add children nodes
-    [tree, merge_idx] = add_tree_node(distance_matrix_loc(min_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level, merge_count);
-    [tree, merge_idx] = add_tree_node(distance_matrix_loc(next_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level, merge_count);
-    %add both children in seen node
-    
-    
-   % Add merged node into tree
-    merged_ts = ts_1(distance_matrix_loc(min_idx):distance_matrix_loc(min_idx)+MAGIC_mp_seg_len-1);
-    [tree, merge_idx] = add_parent_node(merged_ts, distance_matrix_loc(min_idx), MAGIC_mp_seg_len,merge_idx, tree, level,merge_count);
-    
-    % Plot the ones I merged and highlight them.
-    figure;
-    title(level);
-    hold on;
-    plot(ts_1);
-    for idx = 1:length(tree)
-        if (tree(idx).level == level) || (tree(idx).level == level+1)
-            time = tree(idx).index(1,1):1:tree(idx).index(1,2);
-            if (tree(idx).parent_idx == 0) && (tree(idx).level == level+1)
-                plot(time, tree(idx).data, 'Color', [1 0 0], 'LineWidth', 1);
-            elseif (tree(idx).level == level) && (tree(idx).parent_idx ~= 0)
-                plot(time, tree(idx).data, 'Color', [0 0 1], 'LineWidth', 0.7);
+       % Merge min_idx and next_idx
+       % Add children nodes
+        [tree, merge_idx] = add_tree_node(distance_matrix_loc(min_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level, merge_count);
+        [tree, merge_idx] = add_tree_node(distance_matrix_loc(next_idx), MAGIC_mp_seg_len,merge_idx, ts_1, tree, level, merge_count);
+        %add both children in seen node
+
+
+       % Add merged node into tree
+        merged_ts = ts_1(distance_matrix_loc(min_idx):distance_matrix_loc(min_idx)+MAGIC_mp_seg_len-1);
+        [tree, merge_idx] = add_parent_node(merged_ts, distance_matrix_loc(min_idx), MAGIC_mp_seg_len,merge_idx, tree, level,merge_count);
+
+        % Plot the ones I merged and highlight them.
+        figure;
+        title(['merge ' num2str(level)]);
+        hold on;
+        plot(ts_1(1:55000));
+        for idx = 1:length(tree)
+            if (tree(idx).level == level) || (tree(idx).level == level+1)
+                time = tree(idx).index(1,1):1:tree(idx).index(1,2);
+                if (tree(idx).parent_idx == 0) && (tree(idx).level == level+1)
+                    plot(time, tree(idx).data, 'Color', [1 0 0], 'LineWidth', 1);
+                elseif (tree(idx).level == level) && (tree(idx).parent_idx ~= 0)
+                    plot(time, tree(idx).data, 'Color', [0 0 1], 'LineWidth', 0.7);
+                end
             end
         end
-    end
-    
-    % Now need to update distance matrix AND time series
-    
-    % set next_idx to Nan
-    distance_matrix(next_idx) = NaN;
-    
-   post_idx = next_idx + 1 ; 
-   if post_idx < length(distance_matrix)
-       if isnan(distance_matrix(post_idx))
-            for jdx = post_idx:length(distance_matrix)
-                if isnan(distance_matrix(jdx))
-                else
-                    post_idx = jdx;
-                    break
+        xlim([0 length(ts_1(1:55000))]);
+        ylim([-600 600]);
+
+        % Now need to update distance matrix AND time series
+
+        % set next_idx to Nan
+        distance_matrix(next_idx) = NaN;
+
+       post_idx = next_idx + 1 ; 
+       found = 0;
+       if post_idx < length(distance_matrix)
+           if isnan(distance_matrix(post_idx))
+                for jdx = post_idx:length(distance_matrix)
+                    if isnan(distance_matrix(jdx))
+                    else
+                        post_idx = jdx;
+                        found = 1;
+                        break
+                    end
                 end
-            end
-            if post_idx >= length(distance_matrix)
-                % If you get here, there's a chance entire distance matrix NaN
-                if isnan(distance_matrix)
-                    not_exit = 0;
-                    break;
+                if found == 0
+                    % If you get here, there's a chance entire distance matrix NaN
+                    if isnan(distance_matrix)
+                        not_exit = 0;
+                        break;
+                    end
+                    % If you get here, you've probably found the last minidx caculate for 
+                    for jdx = min_idx-1:-1:1
+                        if isnan(distance_matrix(jdx))
+                        else
+                            post_idx = jdx;
+                            found = 1;
+                            break
+                        end
+                    end
+                    if found == 0
+                    % If you get here, you probably exhausted every posssible location
+                    % Set min_val to NaN and continue on
+                        not_exit = 0;
+                        break;
+                    end
                 end
-                % If you get here, you probably exhausted every posssible location
-                % Set min_val to NaN and continue on
-                not_exit = 0;
-                break;
-            end
+           end
+
+
+       % calculate new distance
+         seg_1 = ts_1(distance_matrix_loc(min_idx):distance_matrix_loc(min_idx)+MAGIC_mp_seg_len-1);
+         seg_1(isinf(seg_1)) = 0;
+         seg_2 = ts_1(distance_matrix_loc(post_idx):distance_matrix_loc(post_idx)+MAGIC_mp_seg_len-1);
+         seg_2(isinf(seg_2)) = 0;
+        dist = fastMPdist_SS(seg_1, seg_2, SL);
+
+        % update distance profile
+        distance_matrix(min_idx) = dist(1);
+        summation_distances(min_idx) = dist(1);
        end
 
-   
-   % calculate new distance
-     seg_1 = ts_1(distance_matrix_loc(min_idx):distance_matrix_loc(min_idx)+MAGIC_mp_seg_len-1);
-     seg_1(isinf(seg_1)) = 0;
-     seg_2 = ts_1(distance_matrix_loc(post_idx):distance_matrix_loc(post_idx)+MAGIC_mp_seg_len-1);
-     seg_2(isinf(seg_2)) = 0;
-    dist = fastMPdist_SS(seg_1, seg_2, SL);
-    
-    % update distance profile
-    distance_matrix(min_idx) = dist(1);
-    summation_distances(min_idx) = dist(1);
-   end
-    
-   
-    % remove merged from TS
-    ts_1(distance_matrix_loc(next_idx):distance_matrix_loc(next_idx)+MAGIC_mp_seg_len-1) = NaN;
-    ts_1(isnan(ts_1)) = Inf;    
-    
-    merged_sum = [merged_sum;sum(summation_distances)];
-    
-    % increment level
-    level = level + 1;
-    
+
+        % remove merged from TS
+        ts_1(distance_matrix_loc(next_idx):distance_matrix_loc(next_idx)+MAGIC_mp_seg_len-1) = NaN;
+        ts_1(isnan(ts_1)) = Inf;    
+
+        merged_sum = [merged_sum;nansum(distance_matrix)];
+
+        % increment level
+        level = level + 1;
+   end %end of is nan
 end
 figure;
 plot(merged_sum)
 title('Sum of all distances vs merge');
+xlabel('Merge Number')
+ylabel('Sum of all distances')
     
 
 %% Functions here
@@ -213,7 +235,7 @@ function [tree, merge_idx] = add_tree_node(merge, MAGIC_mp_seg_len,merge_idx,y, 
         tree(merge_idx).right_c = 0;
     end
     merge_idx = merge_idx + 1;
-    tree(merge_idx).merge_count = merge_count
+    tree(merge_idx).merge_count = merge_count;
 end
 %%
 function [tree, merge_idx] = add_parent_node(merge_ts, merge, MAGIC_mp_seg_len,merge_idx, tree, level, merge_count)
@@ -223,7 +245,7 @@ function [tree, merge_idx] = add_parent_node(merge_ts, merge, MAGIC_mp_seg_len,m
     tree(merge_idx).index = [merge,merge+MAGIC_mp_seg_len-1];
     tree(merge_idx).left_c = merge_idx-1;
     tree(merge_idx).right_c = merge_idx-2;
-    tree(merge_idx).merge_count = merge_count
+    tree(merge_idx).merge_count = merge_count;
     merge_idx = merge_idx + 1;
 end
 
