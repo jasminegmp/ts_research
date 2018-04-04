@@ -34,6 +34,7 @@ ts_2 = ts_1(1:seg_len);
 fastMPdist_seg_len = seg_len / 2;
 
 dist_mat = [];
+merge_info = struct();
 merged_tree = struct();
 
 level = 0;
@@ -60,6 +61,11 @@ for idx = 1:seg_len:tot_len - seg_len*2
     
 end
 
+%% keep track of merge meta data
+merge_info.start = dist_mat(:,2);
+merge_info.end = dist_mat(:,3);
+merge_info.merge_count = zeros(length(dist_mat),1);
+
 %% Now this is the main loop that....
 % 1. Goes find minimum in distance matrix
 % 2. Merges minimum
@@ -71,6 +77,8 @@ while (size(dist_mat,1) > 1)
     [min_val, min_idx] = min(dist_mat);
     min_idx = min_idx(1);
     min_val = min_val(1);
+    
+
     
     % 2.
     % found segments to be merged
@@ -90,10 +98,16 @@ while (size(dist_mat,1) > 1)
     
     % merge one segment into another
     ts_1(loc_1:loc_2) = [];
+    
+    % meta data info
+    index  = strfind(transpose(ts), transpose(m_seg_1));
+    merged_idx = find(merge_info.start == index+1);
+    merge_info.merge_count(merged_idx) = level;
+    
     % place new info into tree struct
     merged_tree = add_tree_node(merged_tree, level, min_val, dist_mat(min_idx,2), dist_mat(min_idx,3), dist_mat(min_idx,4), m_seg_0, m_seg_1, ts_1, sum(dist_mat(:,1)));
     level = level + 1;
-    
+
     % 3.
     % replace distance at min_dix to NaN so it's not used again
     dist_mat(min_idx,:) = [];
@@ -129,13 +143,10 @@ ts_1 = ts_1(loc_0:loc_1);
 merged_tree = add_tree_node(merged_tree, level, min_val, loc_0, loc_1, loc_2, m_seg_0, m_seg_1, ts_1, dist_mat(1,1));
 level = level + 1;
 
-%plot final 
-figure;
-title(level);
-hold on;
-plot(ts_1)
 
 
+% Go drawing a tree
+    
 % Fill one node
 function tree = add_tree_node(tree, level, dist, merge_pt_0,merge_pt_1,merge_pt_2, m_seg_0, m_seg_1, ts, dist_sum)
 
