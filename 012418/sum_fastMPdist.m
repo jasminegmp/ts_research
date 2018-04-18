@@ -35,8 +35,10 @@ ts_2 = ts_1(1:seg_len);
 fastMPdist_seg_len = round(seg_len / 2);
 
 dist_mat = [];
+removed_seg = [];
 merge_info = struct();
 merged_tree = struct();
+ts_1_nan = ts_1;
 
 level = 0;
 needs_merging = 1;
@@ -67,6 +69,12 @@ merge_info.start = dist_mat(:,2);
 merge_info.end = dist_mat(:,3);
 merge_info.merge_count = zeros(length(dist_mat),1);
 
+
+%temp var
+final_dist = dist_mat;
+merge_count = 1;
+seen_dist = [];
+dist_mat(:,5) = dist_mat(:,1);
 %% Now this is the main loop that....
 % 1. Goes find minimum in distance matrix
 % 2. Merges minimum
@@ -80,7 +88,6 @@ while (size(dist_mat,1) > 1)
     min_val = min_val(1);
     
 
-    
     % 2.
     % found segments to be merged
     loc_0 = dist_mat(min_idx,2);
@@ -88,16 +95,38 @@ while (size(dist_mat,1) > 1)
     loc_2 = dist_mat(min_idx,4);
     m_seg_0 = ts_1(loc_0:loc_1);
     m_seg_1 = ts_1(loc_1:loc_2);
+%     
+%     if isnan(current) && isnan(previous)
+%         current = loc_1;
+%         previous = current; 
+%         plot_loc_0 = loc_0; 
+%         plot_loc_1 = loc_1;
+%         plot_loc_2 = loc_2;
+%     else
+%         if previous >= current
+%             plot_loc_0 = loc_0; 
+%            % plot_loc_0 = loc_0 + segment_length*realign_count; 
+%             plot_loc_1 = loc_1 + segment_length*realign_count;
+%             plot_loc_2 = loc_2 + segment_length*realign_count;
+%             realign_count = realign_count + 1;
+%         end
+%         current = loc_1;
+%         previous = current; 
+%     end
+    
     
     % plot the two segments that are going to be merged
     figure;
     title(level);
     hold on;
-    plot(ts_1);
-    plot(loc_0:loc_1, m_seg_0, 'Color', [0 0 1], 'LineWidth', 0.7)
-    plot(loc_1:loc_2, m_seg_1, 'Color', [1 0 0], 'LineWidth', 0.7)
-    
+   %plot(ts, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+    plot(ts_1,'Color', [.1 .4 1], 'LineWidth', 0.7);
+    plot(loc_0:loc_1, m_seg_0, 'Color', [1 0 0], 'LineWidth', 0.7)
+    plot(loc_1:loc_2, m_seg_1, 'Color', [0 0 1], 'LineWidth', 0.7)
+
+
     % merge one segment into another
+    %ts_1(loc_1:loc_2) = [];
     ts_1(loc_1:loc_2) = [];
     
     % meta data info
@@ -113,6 +142,13 @@ while (size(dist_mat,1) > 1)
     % 3.
     % replace distance at min_dix to NaN so it's not used again
     dist_mat(min_idx,:) = [];
+    diff_mat = setdiff(final_dist(:,1), dist_mat(:,5));
+    diff_val = setdiff(diff_mat, seen_dist);
+    seen_dist = vertcat(diff_val,seen_dist);
+    seen_dist = unique(seen_dist);
+    row_mark = find(final_dist(:,1) == diff_val);
+    final_dist(row_mark,5) = merge_count;
+    merge_count = merge_count + 1;
     if min_idx <= size(dist_mat,1)
         % update time values
         for idx = min_idx:size(dist_mat,1)
