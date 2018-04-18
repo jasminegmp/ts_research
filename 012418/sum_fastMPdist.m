@@ -34,7 +34,7 @@ ts_2 = ts_1(1:seg_len);
 
 fastMPdist_seg_len = round(seg_len / 2);
 
-dist_mat = [];
+dist_mat = {};
 removed_seg = [];
 merge_info = struct();
 merged_tree = struct();
@@ -51,22 +51,32 @@ hold on;
 plot(ts_1);
 plot(ts_2);
 title('Time series and Segment');
-
+count = 1;
 %% Divide up time series by segment length and claculate distance array
 for idx = 1:seg_len:tot_len - seg_len*2
+    
     seg_0 = idx;
     seg_1 = idx + seg_len - 1;
     seg_2 = seg_1 + seg_len - 1;
 
     dist = fastMPdist_SS(ts_1(seg_0:seg_1), ts_1(seg_1:seg_2),fastMPdist_seg_len);
+    seg_ts_1 = [ts_1(seg_0:seg_1)];
+    seg_ts_2 = [ts_1(seg_1:seg_2)];
     dist_info = [dist seg_0 seg_1 seg_2];
-    dist_mat = [dist_mat;dist_info];
+    dist_mat{count,1} = dist;
+    dist_mat{count,2} = seg_0;
+    dist_mat{count,3} = seg_1;
+    dist_mat{count,4} = seg_2;
+    dist_mat{count,5} = seg_ts_1;
+    dist_mat{count,6} = seg_ts_2;
+    count = count + 1;
+    %dist_mat = {dist_mat;dist_info};
     
 end
 
 %% keep track of merge meta data
-merge_info.start = dist_mat(:,2);
-merge_info.end = dist_mat(:,3);
+merge_info.start = cell2mat(dist_mat(:,2));
+merge_info.end = cell2mat(dist_mat(:,3));
 merge_info.merge_count = zeros(length(dist_mat),1);
 
 
@@ -74,7 +84,7 @@ merge_info.merge_count = zeros(length(dist_mat),1);
 final_dist = dist_mat;
 merge_count = 1;
 seen_dist = [];
-dist_mat(:,5) = dist_mat(:,1);
+dist_mat(:,7) = dist_mat(:,1);
 %% Now this is the main loop that....
 % 1. Goes find minimum in distance matrix
 % 2. Merges minimum
@@ -83,16 +93,16 @@ dist_mat(:,5) = dist_mat(:,1);
 while (size(dist_mat,1) > 1)
     
     % 1.
-    [min_val, min_idx] = min(dist_mat);
+    [min_val, min_idx] = min(cell2mat(dist_mat(:,1)));
     min_idx = min_idx(1);
     min_val = min_val(1);
     
 
     % 2.
     % found segments to be merged
-    loc_0 = dist_mat(min_idx,2);
-    loc_1 = dist_mat(min_idx,3);
-    loc_2 = dist_mat(min_idx,4);
+    loc_0 = cell2mat(dist_mat(min_idx,2));
+    loc_1 = cell2mat(dist_mat(min_idx,3));
+    loc_2 = cell2mat(dist_mat(min_idx,4));
     m_seg_0 = ts_1(loc_0:loc_1);
     m_seg_1 = ts_1(loc_1:loc_2);
 %     
@@ -115,14 +125,13 @@ while (size(dist_mat,1) > 1)
 %     end
     
     
-    % plot the two segments that are going to be merged
-    figure;
-    title(level);
-    hold on;
-   %plot(ts, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
-    plot(ts_1,'Color', [.1 .4 1], 'LineWidth', 0.7);
-    plot(loc_0:loc_1, m_seg_0, 'Color', [1 0 0], 'LineWidth', 0.7)
-    plot(loc_1:loc_2, m_seg_1, 'Color', [0 0 1], 'LineWidth', 0.7)
+%     % plot the two segments that are going to be merged
+%     figure;
+%     title(level);
+%     hold on;
+%     plot(ts_1,'Color', [.1 .4 1], 'LineWidth', 0.7);
+%     plot(loc_0:loc_1, m_seg_0, 'Color', [1 0 0], 'LineWidth', 0.7)
+%     plot(loc_1:loc_2, m_seg_1, 'Color', [0 0 1], 'LineWidth', 0.7)
 
 
     % merge one segment into another
@@ -136,55 +145,69 @@ while (size(dist_mat,1) > 1)
     merge_info.merge_count(merged_idx) = level;
     
     % place new info into tree struct
-    merged_tree = add_tree_node(merged_tree, level, min_val, dist_mat(min_idx,2), dist_mat(min_idx,3), dist_mat(min_idx,4), m_seg_0, m_seg_1, ts_1, sum(dist_mat(:,1)));
+    merged_tree = add_tree_node(merged_tree, level, min_val, cell2mat(dist_mat(min_idx,2)), cell2mat(dist_mat(min_idx,3)), cell2mat(dist_mat(min_idx,4)), m_seg_0, m_seg_1, ts_1, sum(cell2mat(dist_mat(:,1))));
     level = level + 1;
 
     % 3.
     % replace distance at min_dix to NaN so it's not used again
     dist_mat(min_idx,:) = [];
-    diff_mat = setdiff(final_dist(:,1), dist_mat(:,5));
+    diff_mat = setdiff(cell2mat(final_dist(:,1)), cell2mat(dist_mat(:,7)));
     diff_val = setdiff(diff_mat, seen_dist);
     seen_dist = vertcat(diff_val,seen_dist);
     seen_dist = unique(seen_dist);
-    row_mark = find(final_dist(:,1) == diff_val);
-    final_dist(row_mark,5) = merge_count;
+    row_mark = find(cell2mat(final_dist(:,1)) == diff_val);
+    final_dist(row_mark,7) = {merge_count};
     merge_count = merge_count + 1;
     if min_idx <= size(dist_mat,1)
         % update time values
         for idx = min_idx:size(dist_mat,1)
             for j = 2:4 %updating columns 2 -4
-                dist_mat(idx,j) = dist_mat(idx,j) - seg_len;
+                dist_mat(idx,j) = {cell2mat(dist_mat(idx,j)) - seg_len};
             end
         end
         % update distance at min_idx + 1 unless it's the last item in dist_mat
-        dist = fastMPdist_SS(ts_1(dist_mat(min_idx,2):dist_mat(min_idx,3)), ts_1(dist_mat(min_idx,3):dist_mat(min_idx,4)),fastMPdist_seg_len);
-        dist_mat(min_idx,1) = dist;
+        dist = fastMPdist_SS(ts_1(cell2mat(dist_mat(min_idx,2)):cell2mat(dist_mat(min_idx,3))), ts_1(cell2mat(dist_mat(min_idx,3)):cell2mat(dist_mat(min_idx,4))),fastMPdist_seg_len);
+        dist_mat(min_idx,1) = {dist};
     end
     % 4.
     
 end
 
-% plot final two segments that are going to be merged
-loc_0 = dist_mat(1,2);
-loc_1 = dist_mat(1,3);
-loc_2 = dist_mat(1,4);
-m_seg_0 = ts_1(loc_0:loc_1);
-m_seg_1 = ts_1(loc_1:loc_2);
+% % plot final two segments that are going to be merged
+% loc_0 = dist_mat(1,2);
+% loc_1 = dist_mat(1,3);
+% loc_2 = dist_mat(1,4);
+% m_seg_0 = ts_1(loc_0:loc_1);
+% m_seg_1 = ts_1(loc_1:loc_2);
 
-figure;
-title(level);
-hold on;
-plot(ts_1);
-plot(loc_0:loc_1, m_seg_0, 'Color', [0 0 1], 'LineWidth', 0.7)
-plot(loc_1:loc_2, m_seg_1, 'Color', [1 0 0], 'LineWidth', 0.7)
-ts_1 = ts_1(loc_0:loc_1);
-merged_tree = add_tree_node(merged_tree, level, min_val, loc_0, loc_1, loc_2, m_seg_0, m_seg_1, ts_1, dist_mat(1,1));
-level = level + 1;
+% figure;
+% title(level);
+% hold on;
+% plot(ts_1);
+% plot(loc_0:loc_1, m_seg_0, 'Color', [0 0 1], 'LineWidth', 0.7)
+% plot(loc_1:loc_2, m_seg_1, 'Color', [1 0 0], 'LineWidth', 0.7)
+% ts_1 = ts_1(loc_0:loc_1);
+% merged_tree = add_tree_node(merged_tree, level, min_val, loc_0, loc_1, loc_2, m_seg_0, m_seg_1, ts_1, dist_mat(1,1));
+% level = level + 1;
 
-
-
-% Go drawing a tree
+% Go plot output
+for j = 1:length(final_dist)
+    figure;
+    title(j);
+    hold on;
+    plot(ts,'Color', [.1 .4 1], 'LineWidth', 0.7);
     
+    for k = 1:1:length(final_dist)
+        if cell2mat(final_dist(k,7)) <= j
+            plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+        end
+    end
+    
+    %plot(loc_1:loc_2, m_seg_1, 'Color', [0 0 1], 'LineWidth', 0.7)
+end
+    
+
+
 % Fill one node
 function tree = add_tree_node(tree, level, dist, merge_pt_0,merge_pt_1,merge_pt_2, m_seg_0, m_seg_1, ts, dist_sum)
 
