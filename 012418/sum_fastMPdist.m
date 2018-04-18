@@ -6,7 +6,7 @@ close all
 
 %% Modifiable constants
 DEBUG = 1;
-default_file = 'ecg_clean.mat';
+default_file = '12726m.mat';
 segment_length = 1000;
 
 %% Input file
@@ -14,7 +14,8 @@ segment_length = 1000;
 
 if DEBUG
     data = load(default_file);
-    ts = data.ts;
+    ts = data.val;
+    ts = transpose(ts);
     seg_len = segment_length;
 else
     prompt = 'Input file name: ';
@@ -31,7 +32,7 @@ tot_len = length(ts);
 ts_1 = ts;
 ts_2 = ts_1(1:seg_len);
 
-fastMPdist_seg_len = seg_len / 2;
+fastMPdist_seg_len = round(seg_len / 2);
 
 dist_mat = [];
 merge_info = struct();
@@ -100,8 +101,9 @@ while (size(dist_mat,1) > 1)
     ts_1(loc_1:loc_2) = [];
     
     % meta data info
+    
     index  = strfind(transpose(ts), transpose(m_seg_1));
-    merged_idx = find(merge_info.start == index+1);
+    merged_idx = find(merge_info.start == (index+1));
     merge_info.merge_count(merged_idx) = level;
     
     % place new info into tree struct
@@ -115,7 +117,7 @@ while (size(dist_mat,1) > 1)
         % update time values
         for idx = min_idx:size(dist_mat,1)
             for j = 2:4 %updating columns 2 -4
-                dist_mat(idx,j) = dist_mat(idx,j) - 1000;
+                dist_mat(idx,j) = dist_mat(idx,j) - seg_len;
             end
         end
         % update distance at min_idx + 1 unless it's the last item in dist_mat
