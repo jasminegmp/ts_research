@@ -131,6 +131,14 @@ while (size(dist_mat,1) > 1)
             plot(temp_loc_0:temp_loc_1, temp_seg, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
         end
     end
+% 
+%     for i = 1:length(merge_history{merge_count,1})
+%         if ~isnan(merge_history{merge_count,1}{i,8})
+%             plot(loc_2:loc_3, m_seg_1, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+%         end
+%     end
+    
+
     
     %do merge
     if min_idx < length(dist_mat)
@@ -160,23 +168,19 @@ while (size(dist_mat,1) > 1)
     
     if strcmp('left_linkage',merge_type)
         % ts_1(loc_0:loc_1)
-        merged_data{merge_count,1} = {loc_2};
-        merged_data{merge_count,2} = {loc_3};
-        merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
         ts_1(loc_2:loc_3) = NaN;
+        merged_data{merge_count,1} = {loc_2};
+    merged_data{merge_count,2} = {loc_3};
+    merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
     end
     
     if strcmp('average_linkage',merge_type)
         new_ts = [];
         for k = 1:segment_length
-            new_ts(k) = (ts_1(loc_0+k-1) +ts_1(loc_2+k-1))/2;
+            new_ts(k) = mean(ts_1(loc_0+k-1), ts_1(loc_2+k-1));
         end
-        merged_data{merge_count,1} = {loc_2};
-        merged_data{merge_count,2} = {loc_3};
-        merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
         ts_1(loc_0:loc_1) = new_ts;
         ts_1(loc_2:loc_3) = NaN;
-
     end
     
    % Remove merged segment
@@ -198,5 +202,64 @@ while (size(dist_mat,1) > 1)
     end
     merge_count = merge_count + 1;
 
+    
+end
+
+% % plot final two segments that are going to be merged
+% loc_0 = dist_mat(1,2);
+% loc_1 = dist_mat(1,3);
+% loc_2 = dist_mat(1,4);
+% m_seg_0 = ts_1(loc_0:loc_1);
+% m_seg_1 = ts_1(loc_1:loc_2);
+
+% figure;
+% title(level);
+% hold on;
+% plot(ts_1);
+% plot(loc_0:loc_1, m_seg_0, 'Color', [0 0 1], 'LineWidth', 0.7)
+% plot(loc_1:loc_2, m_seg_1, 'Color', [1 0 0], 'LineWidth', 0.7)
+% ts_1 = ts_1(loc_0:loc_1);
+% merged_tree = add_tree_node(merged_tree, level, min_val, loc_0, loc_1, loc_2, m_seg_0, m_seg_1, ts_1, dist_mat(1,1));
+% level = level + 1;
+
+% Go plot output
+% for j = 1:length(final_dist)
+%     figure;
+%     title(j);
+%     hold on;
+%     plot(ts,'Color', [.1 .4 1], 'LineWidth', 0.7);
+%     
+%     for k = 1:1:length(final_dist)
+%         if cell2mat(final_dist(k,7)) <= j
+%             if cell2mat(final_dist(k,7)) < j
+%                 plot(cell2mat(final_dist(k,3)):cell2mat(final_dist(k,4)), cell2mat(final_dist(k,6)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+%                 plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+%             else
+%                 plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [1 0 0], 'LineWidth', 0.7)
+%                 plot(cell2mat(final_dist(k,3)):cell2mat(final_dist(k,4)), cell2mat(final_dist(k,6)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+%             end
+%         end
+%     end
+%     
+%     %plot(loc_1:loc_2, m_seg_1, 'Color', [0 0 1], 'LineWidth', 0.7)
+% end
+%     
+
+
+% Fill one node
+function tree = add_tree_node(tree, level, dist, merge_pt_0,merge_pt_1,merge_pt_2, m_seg_0, m_seg_1, ts, dist_sum)
+
+    merge_idx = level + 1;
+    
+    tree(merge_idx).level = level;
+    tree(merge_idx).dist = dist;
+    tree(merge_idx).merge_pt_0 = merge_pt_0;
+    tree(merge_idx).merge_pt_1 = merge_pt_1;
+    tree(merge_idx).merge_pt_2 = merge_pt_2;
+    tree(merge_idx).m_seg_0 = m_seg_0;
+    tree(merge_idx).m_seg_1 = m_seg_1;
+    tree(merge_idx).ts = ts;
+    tree(merge_idx).dist_sum = dist_sum;
+    
     
 end
