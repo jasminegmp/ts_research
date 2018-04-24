@@ -8,6 +8,7 @@ close all
 DEBUG = 1;
 default_file = '12726m.mat';
 segment_length = 1000;
+merge_type = 'average_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
 
 %% Input file
 % expecting all load files to have a ts time series datapoint
@@ -163,13 +164,33 @@ while (size(dist_mat,1) > 1)
         % if only nan left
     end
     
-    % Remove merged segment
 
-    merged_data{merge_count,1} = {loc_2};
-    merged_data{merge_count,2} = {loc_3};
-    merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
-    % ts_1(loc_0:loc_1) stays the same for left merge
-    ts_1(loc_2:loc_3) = NaN;
+    
+    if strcmp('left_linkage',merge_type)
+        % ts_1(loc_0:loc_1)
+        merged_data{merge_count,1} = {loc_2};
+        merged_data{merge_count,2} = {loc_3};
+        merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
+        ts_1(loc_2:loc_3) = NaN;
+    end
+    
+    if strcmp('average_linkage',merge_type)
+        new_ts = [];
+        for k = 1:segment_length
+            new_ts(k) = (ts_1(loc_0+k-1) +ts_1(loc_2+k-1))/2;
+        end
+        merged_data{merge_count,1} = {loc_2};
+        merged_data{merge_count,2} = {loc_3};
+        merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
+        ts_1(loc_0:loc_1) = new_ts;
+        ts_1(loc_2:loc_3) = NaN;
+
+    end
+    
+   % Remove merged segment
+
+
+    
     dist_mat(min_idx,:) = {NaN};
     dist_mat{min_idx,8} = merge_count;
     
