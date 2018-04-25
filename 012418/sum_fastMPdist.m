@@ -158,6 +158,10 @@ while (size(dist_mat,1) > 1)
     row_mark = find(cell2mat(final_dist(:,1)) == diff_val);
     final_dist(row_mark,7) = {merge_count};
     merge_count = merge_count + 1;
+    final_dist(row_mark,8) = {m_seg_0};
+    final_dist(row_mark,9) = {cell2mat(dist_mat(min_idx,2))};
+    final_dist(row_mark,10) = {m_seg_1};
+    final_dist(row_mark,11) = {cell2mat(dist_mat(min_idx,3))};
     if min_idx <= size(dist_mat,1)
         % update time values
         for idx = min_idx:size(dist_mat,1)
@@ -169,6 +173,9 @@ while (size(dist_mat,1) > 1)
         dist = fastMPdist_SS(ts_1(cell2mat(dist_mat(min_idx,2)):cell2mat(dist_mat(min_idx,3))), ts_1(cell2mat(dist_mat(min_idx,3)):cell2mat(dist_mat(min_idx,4))),fastMPdist_seg_len);
         dist_mat(min_idx,1) = {dist};
     end
+    
+
+    
     % 4.
     
 end
@@ -199,7 +206,13 @@ for j = 1:length(final_dist)
     
     for k = 1:1:length(final_dist)
         if cell2mat(final_dist(k,7)) <= j
-            plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+            if cell2mat(final_dist(k,7)) < j
+                plot(cell2mat(final_dist(k,3)):cell2mat(final_dist(k,4)), cell2mat(final_dist(k,6)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+                plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+            else
+                plot(cell2mat(final_dist(k,2)):cell2mat(final_dist(k,3)), cell2mat(final_dist(k,5)), 'Color', [1 0 0], 'LineWidth', 0.7)
+                plot(cell2mat(final_dist(k,3)):cell2mat(final_dist(k,4)), cell2mat(final_dist(k,6)), 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+            end
         end
     end
     
