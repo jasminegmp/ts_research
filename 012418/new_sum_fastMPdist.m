@@ -8,8 +8,8 @@ close all
 DEBUG = 1;
 %default_file = '12726m.mat';
 %segment_length = 1000;
-merge_type = 'left_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
-fid = fopen('test3.txt');
+merge_type = 'average_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
+fid = fopen('test2.txt');
 A=textscan(fid,'%s');
 ts = [];
 for a = 1:length(A{1,1})
@@ -101,6 +101,7 @@ merge_history{merge_count,1} = dist_mat;
 % 2. Merges minimum
 % 3. Updates distance matrix
 % 4. Repeat until all time series segments have been merged
+s_plot_count = 1;
 while (size(dist_mat,1) > 1)
     if any(~isnan(cell2mat(dist_mat(:,1)))) == 0
         break;
@@ -132,7 +133,13 @@ while (size(dist_mat,1) > 1)
     if strcmp('left_linkage',merge_type)
         
         %plot the two segments that are going to be merged
-        figure;
+        if s_plot_count == 5
+            figure;
+            s_plot_count = 1;
+        end
+        
+        subplot(4,1,s_plot_count);
+        s_plot_count = s_plot_count + 1;
         title(merge_count);
         hold on;
         plot(ts_1, 'LineWidth', 0.7);
