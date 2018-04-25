@@ -8,7 +8,7 @@ close all
 DEBUG = 1;
 %default_file = '12726m.mat';
 %segment_length = 1000;
-merge_type = 'average_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
+merge_type = 'minimum_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
 fid = fopen('test2.txt');
 A=textscan(fid,'%s');
 ts = [];
@@ -102,6 +102,7 @@ merge_history{merge_count,1} = dist_mat;
 % 3. Updates distance matrix
 % 4. Repeat until all time series segments have been merged
 s_plot_count = 1;
+orig_ts = ts_1;
 while (size(dist_mat,1) > 1)
     if any(~isnan(cell2mat(dist_mat(:,1)))) == 0
         break;
@@ -249,6 +250,7 @@ while (size(dist_mat,1) > 1)
         merged_data{merge_count,8} = {loc_1};
         merged_data{merge_count,9} = {new_ts};
         merged_data{merge_count,10} = {min_val};
+        old_ts = ts_1;
         ts_1(loc_0:loc_1) = new_ts;
         ts_1(loc_2:loc_3) = NaN;
         
@@ -272,47 +274,188 @@ while (size(dist_mat,1) > 1)
         % 4. plot everything that happened in this step
         
         %plot the two segments that are going to be merged
-        figure;
+        if s_plot_count == 5
+            figure;
+            s_plot_count = 1;
+        end
+        
+        subplot(4,1,s_plot_count);
+        s_plot_count = s_plot_count + 1;
+        
+        %plot the two segments that are going to be merged
+        %figure;
         title(merge_count);
         hold on;
-        plot(ts_1, 'LineWidth', 0.7);
-        plot(merged_data{merge_count,1}{1,1}:merged_data{merge_count,2}{1,1}, merged_data{merge_count,3}{1,1}, 'Color', [0.1 0.1 0.1], 'LineWidth', 0.7)
-        plot(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}, merged_data{merge_count,6}{1,1}, 'Color', [0.1 0.1 0.1], 'LineWidth', 0.7)
+        
+        plot(orig_ts, 'LineWidth', 0.5, 'LineWidth', 1.5,'Color', [.8 .8 .65]);
+        plot(old_ts, 'LineWidth', 0.7, 'Color',[0.25 0.42 .73]);
+        plot(merged_data{merge_count,1}{1,1}:merged_data{merge_count,2}{1,1}, merged_data{merge_count,3}{1,1}, 'Color', [0.4 0.4 0.4], 'LineWidth', 0.7)
+        plot(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}, merged_data{merge_count,6}{1,1}, 'Color', [0.4 0.4 0.4], 'LineWidth', 0.7)
         plot(merged_data{merge_count,7}{1,1}:merged_data{merge_count,8}{1,1}, merged_data{merge_count,9}{1,1}, 'Color', [1 0 0], 'LineWidth', 1)
-        %plot old as gray
-        if merge_count > 1
-            for i = 1:size(merged_data,1)
-                temp_loc_0 = cell2mat(merged_data{i, 4});
-                temp_loc_1 = cell2mat(merged_data{i, 5});
-                temp_seg = cell2mat(merged_data{i, 6});
-                plot(temp_loc_0:temp_loc_1, temp_seg, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
-            end
-        end
+%         %plot old as gray
+%         if merge_count > 1
+%             for i = 1:size(merged_data,1)
+%                 if i < merge_count
+%                     temp_loc_0 = cell2mat(merged_data{i, 4});
+%                     temp_loc_1 = cell2mat(merged_data{i, 5});
+%                     temp_seg = cell2mat(merged_data{i, 6});
+%                     plot(temp_loc_0:temp_loc_1, temp_seg, 'Color', [0.5 0.5 0.5], 'LineWidth', 0.7)
+%                 end
+%             end
+%         end
 
     end
     %%
     if strcmp('minimum_linkage',merge_type)
         
-        % ts_1(loc_0:loc_1)
-        merged_data{merge_count,1} = {loc_2};
-        merged_data{merge_count,2} = {loc_3};
-        merged_data{merge_count,3} = {ts_1(loc_2:loc_3)};
-        ts_1(loc_2:loc_3) = NaN;
+        %update distance matrix with new next values
+        if min_idx < length(dist_mat)
+            %find next valid value
+            for j = min_idx+1:length(dist_mat)
+                if ~isnan(cell2mat(dist_mat(j,1)))
+                    if min_idx+1 == j
+                        last_element = 0;
+                    else
+                        last_element = 0;
+                    end
+                    next = j;
+                    break;
+                else
+                    last_element = 1;
+                end
+            end
+            %if only nan left
+        end
         
+        %find prev value
+        if min_idx > 1
+            %find next valid value
+            for j = min_idx-1:-1:1
+                if ~isnan(cell2mat(dist_mat(j,1)))
+                    if min_idx+1 == j
+                        last_element = 0;
+                    else
+                        last_element = 0;
+                    end
+                    prev = j;
+                    break;
+                else
+                    last_element = 1;
+                end
+            end
+            %if only nan left
+        end
+    
+    
+        
+        % 2.  perform merge, replacing the greater distance subsequence 
+        % old
+        merged_data{merge_count,1} = {loc_0};
+        merged_data{merge_count,2} = {loc_1};
+        merged_data{merge_count,3} = {ts_1(loc_0:loc_1)};
+        merged_data{merge_count,4} = {loc_2};
+        merged_data{merge_count,5} = {loc_3};
+        merged_data{merge_count,6} = {ts_1(loc_2:loc_3)};
+        
+        old_ts = ts_1;
+        % find which one to replace
+        if min_idx < length(dist_mat) && (last_element == 0)
+            % after
+            if next <= length(dist_mat)
+                current_m_seg_1 = cell2mat({ts_1(loc_2:loc_3)});
+                temp_m_seg_1 = cell2mat({ts_1(cell2mat(dist_mat(next,4)):cell2mat(dist_mat(next,5)))});
+                current_m_seg_1(isnan(current_m_seg_1)) = 0;
+                temp_m_seg_1(isnan(temp_m_seg_1)) = 0;
+            end
+                
+            if min_idx > 1
+                % before
+                current_m_seg_0 = cell2mat({ts_1(loc_0:loc_1)});
+                temp_m_seg_0 = cell2mat({ts_1(cell2mat(dist_mat(prev,2)):cell2mat(dist_mat(prev,3)))});
+                current_m_seg_0(isnan(current_m_seg_0)) = 0;
+                temp_m_seg_0(isnan(temp_m_seg_0)) = 0;
+            
+            end
+
+            if min_idx > 1 && next <= length(dist_mat)
+                % compare
+                dist_0 = fastMPdist_SS(current_m_seg_0,temp_m_seg_0,fastMPdist_seg_len);
+                dist_1 = fastMPdist_SS(current_m_seg_1,temp_m_seg_1,fastMPdist_seg_len);
+                
+                if dist_0 > dist_1
+                    dist_mat(next,1) = {dist_1};
+                    dist_mat(next,2) = {loc_2};
+                    dist_mat(next,3) = {loc_3};
+                    new_ts = ts_1(loc_2:loc_3);
+                    ts_1(loc_0:loc_1) = NaN;
+                else
+                    dist_mat(prev,1) = {dist_0};
+                    dist_mat(prev,2) = {loc_0};
+                    dist_mat(prev,3) = {loc_1};
+                    new_ts = ts_1(loc_0:loc_1);
+                    ts_1(loc_2:loc_3) = NaN;
+                end
+                
+                
+            elseif min_idx > 1
+                dist = fastMPdist_SS(current_m_seg_0,temp_m_seg_0,fastMPdist_seg_len);
+                dist_mat(merge_loc,1) = {dist};
+                dist_mat(merge_loc,2) = {loc_0};
+                dist_mat(merge_loc,3) = {loc_1};
+                new_ts = ts_1(loc_0:loc_1);
+                ts_1(loc_2:loc_3) = NaN;
+            else
+                    
+                dist = fastMPdist_SS(current_m_seg_1,temp_m_seg_1,fastMPdist_seg_len);
+                dist_mat(merge_loc,1) = {dist};
+                dist_mat(merge_loc,2) = {loc_2};
+                dist_mat(merge_loc,3) = {loc_3};
+                new_ts = ts_1(loc_2:loc_3);
+                ts_1(loc_0:loc_1) = NaN;
+                
+            end
+            
+            
+        end
+        
+        %new
+        merged_data{merge_count,7} = dist_mat(merge_loc,2);
+        merged_data{merge_count,8} = dist_mat(merge_loc,3);
+        merged_data{merge_count,9} = {new_ts};
+        merged_data{merge_count,10} = {min_val};
+
+        
+        
+        
+        
+        % 3. update distance matrix, calculate new distance and location
         % Remove merged segment
         dist_mat(min_idx,:) = {NaN};
         dist_mat{min_idx,8} = merge_count;
 
-        if min_idx < length(dist_mat) && (last_element == 0)
-        %3. calculate new distance and location
-            % remove all NaN and replace with 0
-            m_seg_0(isnan(m_seg_0)) = 0;
-            m_seg_1(isnan(m_seg_1)) = 0;
-            dist = fastMPdist_SS(m_seg_0,new_m_seg_1,fastMPdist_seg_len);
-            dist_mat(merge_loc,1) = {dist};
-            dist_mat(merge_loc,2) = {loc_0};
-            dist_mat(merge_loc,3) = {loc_1};
+
+        
+        % 4. plot everything that happened in this step
+        
+        %plot the two segments that are going to be merged
+        if s_plot_count == 5
+            figure;
+            s_plot_count = 1;
         end
+        
+        subplot(4,1,s_plot_count);
+        s_plot_count = s_plot_count + 1;
+        
+        %plot the two segments that are going to be merged
+        %figure;
+        title(merge_count);
+        hold on;
+        
+       % plot(orig_ts, 'LineWidth', 0.5, 'LineWidth', 1.5,'Color', [.8 .8 .65]);
+        plot(old_ts, 'LineWidth', 0.7, 'Color',[0.25 0.42 .73]);
+        plot(merged_data{merge_count,1}{1,1}:merged_data{merge_count,2}{1,1}, merged_data{merge_count,3}{1,1}, 'Color', [0.4 0.4 0.4], 'LineWidth', 0.7)
+        plot(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}, merged_data{merge_count,6}{1,1}, 'Color', [0.4 0.4 0.4], 'LineWidth', 0.7)
+        plot(merged_data{merge_count,7}{1,1}:merged_data{merge_count,8}{1,1}, merged_data{merge_count,9}{1,1}, 'Color', [1 0 0], 'LineWidth', 1)
     
     end
     
