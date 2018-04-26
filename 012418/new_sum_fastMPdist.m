@@ -9,7 +9,7 @@ close all
 DEBUG = 1;
 %default_file = '12726m.mat';
 %segment_length = 1000;
-merge_type = 'minimum_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
+merge_type = 'average_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
 fid = fopen('test2.txt');
 A=textscan(fid,'%s');
 ts = [];
@@ -233,6 +233,26 @@ while (size(dist_mat,1) > 1)
             %if only nan left
         end
     
+                %find prev value
+        if min_idx > 1
+            prev = NaN;
+            %find next valid value
+            for j = min_idx-1:-1:1
+                if ~isnan(cell2mat(dist_mat(j,1)))
+                    if min_idx+1 == j
+                        last_element = 0;
+                    else
+                        last_element = 0;
+                    end
+                    prev = j;
+                    break;
+                else
+                    last_element = 1;
+                    
+                end
+            end
+            %if only nan left
+        end
         
         new_ts = [];
         % Find new average subsequence
@@ -261,17 +281,30 @@ while (size(dist_mat,1) > 1)
         dist_mat(min_idx,:) = {NaN};
         dist_mat{min_idx,8} = merge_count;
 
-        if min_idx < length(dist_mat) && (last_element == 0)
+        m_seg_0 = merged_data{merge_count,9}{1,1};
+        %m_seg_1 = merged_data{merge_count,9}{1,1};
+        m_seg_0(isnan(m_seg_0)) = 0;
+        if min_idx < length(dist_mat)
             % remove all NaN and replace with 0
-            m_seg_0 = merged_data{merge_count,9}{1,1};
-            %m_seg_1 = merged_data{merge_count,9}{1,1};
-            m_seg_0(isnan(m_seg_0)) = 0;
+
            % m_seg_1(isnan(m_seg_1)) = 0;
             dist = fastMPdist_SS(m_seg_0,new_m_seg_1,fastMPdist_seg_len);
             dist_mat(merge_loc,1) = {dist};
             dist_mat(merge_loc,2) = {loc_0};
             dist_mat(merge_loc,3) = {loc_1};
+            
         end
+        if min_idx > 1 && ~isnan(prev)
+                        
+            prev_seg_loc_0 = cell2mat(dist_mat(prev,2));
+            prev_seg_loc_1 = cell2mat(dist_mat(prev,3));
+            prev_seg_0 = ts(prev_seg_loc_0:prev_seg_loc_1);
+            prev_seg_0(isnan(prev_seg_0)) = 0;
+            dist = fastMPdist_SS(m_seg_0,prev_seg_0,fastMPdist_seg_len);
+            dist_mat(prev,1) = {dist};
+            
+        end
+        
         
         % 4. plot everything that happened in this step
         
@@ -364,6 +397,11 @@ while (size(dist_mat,1) > 1)
         merged_data{merge_count,6} = {ts_1(loc_2:loc_3)};
         
         old_ts = ts_1;
+        
+        if isnan(prev) && isnan(next)
+            break;
+        end
+        
         % find which one to replace
         if min_idx <= length(dist_mat)
             % after
@@ -461,9 +499,7 @@ while (size(dist_mat,1) > 1)
             
         end
         
-        if isnan(prev) && isnan(next)
-            break;
-        end
+
 
         
 
