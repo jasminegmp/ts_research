@@ -1,10 +1,9 @@
-function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
+function gui_ds = new_sum_fastMPdist(merge_type)%% Modifiable constants
     DEBUG = 1;
     %default_file = '12726m.mat';
     %segment_length = 1000;
     %merge_type = 'left_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
-    %fid = fopen('test2.txt');
-    fid = fopen(f_name);
+    fid = fopen('test2.txt');
     A=textscan(fid,'%s');
     ts = [];
     for a = 1:length(A{1,1})
@@ -351,11 +350,10 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
         end
         %%
         if strcmp('minimum_linkage',merge_type)
-            next = NaN;
-            prev = NaN;
+
             %update distance matrix with new next values
             if min_idx < length(dist_mat)
-                
+                next = NaN;
                 %find next valid value
                 for j = min_idx+1:length(dist_mat)
                     if ~isnan(cell2mat(dist_mat(j,1)))
@@ -458,7 +456,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
                         dist = dist_0;
                     end   
                 % has no after  
-                elseif isnan(next)
+                elseif min_idx == next && ~isnan(prev)
                     m_idx = prev;
                     r_idx = min_idx;
                     dist = fastMPdist_SS(current_m_seg_0,temp_m_seg_0,fastMPdist_seg_len);
@@ -466,6 +464,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
                     loc_b = loc_1;
                     loc_c = loc_2;
                     loc_d = loc_3;
+                    dist = dist_0;
                 % HAS NO BEFORE     
                 else
                     m_idx = next;
@@ -475,6 +474,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
                     loc_b = loc_3;
                     loc_c = loc_0;
                     loc_d = loc_1;
+                    dist = dist_1;
 
                 end
 
@@ -556,11 +556,11 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
 %         
             gui_ds = insert_gd(gui_ds,(1:length(ts_1)), ts_1, gd_count, 1);
             if merged_data{merge_count,7}{1,1} == merged_data{merge_count,1}{1,1}
-                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,1}{1,1}:merged_data{merge_count,2}{1,1}), merged_data{merge_count,3}{1,1}, gd_count, 3);
+                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,7}{1,1}:merged_data{merge_count,8}{1,1}), merged_data{merge_count,9}{1,1}, gd_count, 3);
                 gui_ds = insert_gd(gui_ds,(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}), merged_data{merge_count,6}{1,1}, gd_count, 5);
             else
-                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}), merged_data{merge_count,6}{1,1}, gd_count, 3);
-                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,1}{1,1}:merged_data{merge_count,2}{1,1}), merged_data{merge_count,3}{1,1}, gd_count, 5);
+                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,7}{1,1}:merged_data{merge_count,8}{1,1}), merged_data{merge_count,9}{1,1}, gd_count, 3);
+                gui_ds = insert_gd(gui_ds,(merged_data{merge_count,4}{1,1}:merged_data{merge_count,5}{1,1}), merged_data{merge_count,6}{1,1}, gd_count, 5);
             end
 
             gd_count = gd_count + 1;
