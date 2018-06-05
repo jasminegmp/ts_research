@@ -1,17 +1,25 @@
-function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
+function gui_ds = new_sum_fastMPdist(merge_type,f_name, segment_length)%% Modifiable constants
     DEBUG = 1;
     %default_file = '12726m.mat';
     %segment_length = 1000;
     %merge_type = 'left_linkage'; % 'left_linkage', 'average_linkage', 'minimum_linkage'
     %fid = fopen('test2.txt');
-    fid = fopen(f_name);
-    A=textscan(fid,'%s');
-    ts = [];
-    for a = 1:length(A{1,1})
-        ts(a) = str2num((A{1,1}{a,1}));
+    f_type = extractAfter(f_name,'.');
+    if f_type == 'txt'
+        fid = fopen(f_name);
+        A=textscan(fid,'%s');
+        ts = [];
+        for a = 1:length(A{1,1})
+            ts(a) = str2num((A{1,1}{a,1}));
+        end
+    elseif f_type == 'mat'
+        data = load(f_name);
+        ts = data.val;
     end
     transpose(ts);
-    segment_length = 199;
+    
+
+    
     seg_len = segment_length;
 
     %% Input file
@@ -69,6 +77,18 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
     %title('Time series and Segment');
     count = 1;
     %% Divide up time series by segment length and claculate distance array
+    % first make sure you can divide by the seg_len
+    for idx = 1:seg_len:tot_len - seg_len
+        seg_0 = idx;
+        seg_1 = idx + seg_len;
+        seg_2 = seg_1;
+        seg_3 = seg_1 + seg_len;
+
+        if seg_3 > tot_len
+            seg_3 = tot_len
+            break;
+        end
+    end
     for idx = 1:seg_len:tot_len - seg_len
 
         seg_0 = idx;
@@ -77,6 +97,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
         seg_3 = seg_1 + seg_len;
 
         if seg_3 > tot_len
+            seg_3 = tot_len
             break;
         end
         dist = fastMPdist_SS(ts_1(seg_0:seg_1), ts_1(seg_2:seg_3),fastMPdist_seg_len);
@@ -169,9 +190,9 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
             end
 
             %update distance matrix with new next values
-            if min_idx < length(dist_mat)
+            if min_idx < length(dist_mat(:,1))
                 % find next valid value
-                for j = min_idx+1:length(dist_mat)
+                for j = min_idx+1:length(dist_mat(:,1))
                     if ~isnan(cell2mat(dist_mat(j,1)))
                         next_loc_0 = cell2mat(dist_mat(j,4));
                         next_loc_1 = cell2mat(dist_mat(j,5));
@@ -204,7 +225,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
             dist_mat(min_idx,:) = {NaN};
             dist_mat{min_idx,8} = merge_count;
 
-            if min_idx < length(dist_mat) && (last_element == 0)
+            if min_idx < length(dist_mat(:,1)) && (last_element == 0)
                 % remove all NaN and replace with 0
                 m_seg_0(isnan(m_seg_0)) = 0;
                 m_seg_1(isnan(m_seg_1)) = 0;
@@ -293,7 +314,7 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
             m_seg_0 = merged_data{merge_count,9}{1,1};
             %m_seg_1 = merged_data{merge_count,9}{1,1};
             m_seg_0(isnan(m_seg_0)) = 0;
-            if min_idx < length(dist_mat)
+            if min_idx < length(dist_mat(:,1))
                 % remove all NaN and replace with 0
 
                % m_seg_1(isnan(m_seg_1)) = 0;
@@ -354,22 +375,24 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
             next = NaN;
             prev = NaN;
             %update distance matrix with new next values
-            if min_idx < length(dist_mat)
+            if min_idx < length(dist_mat(:,1))
                 
                 %find next valid value
-                for j = min_idx+1:length(dist_mat)
-                    if ~isnan(cell2mat(dist_mat(j,1)))
-                        if min_idx+1 == j
-                            last_element = 0;
-                        else
-                            last_element = 0;
-                        end
-                        next = j;
-                        break;
-                    else
-                        last_element = 1;
+                for j = min_idx+1:length(dist_mat(:,1))
 
-                    end
+                        if ~isnan(cell2mat(dist_mat(j,1)))
+                            if min_idx+1 == j
+                                last_element = 0;
+                            else
+                                last_element = 0;
+                            end
+                            next = j;
+                            break;
+                        else
+                            last_element = 1;
+
+                        end
+
                 end
                 %if only nan left
             end
@@ -413,9 +436,9 @@ function gui_ds = new_sum_fastMPdist(merge_type,f_name)%% Modifiable constants
             end
 
             % find which one to replace
-            if min_idx <= length(dist_mat)
+            if min_idx <= length(dist_mat(:,1))
                 % after
-                if next <= length(dist_mat)
+                if next <= length(dist_mat(:,1))
                     current_m_seg_1 = cell2mat({ts_1(loc_2:loc_3)});
                     temp_m_seg_1 = cell2mat({ts_1(cell2mat(dist_mat(next,4)):cell2mat(dist_mat(next,5)))});
                     current_m_seg_1(isnan(current_m_seg_1)) = 0;

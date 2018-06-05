@@ -22,7 +22,7 @@ function varargout = untitled(varargin)
 
 % Edit the above text to modify the response to help untitled
 
-% Last Modified by GUIDE v2.5 04-Jun-2018 15:07:22
+% Last Modified by GUIDE v2.5 05-Jun-2018 10:36:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -135,13 +135,13 @@ function pushbutton1_Callback(hObject, eventdata, handles)
 global gui_ds;
 global linkage;
 global f_name;
+global seg_length;
 % Run script first
-gui_ds = new_sum_fastMPdist(linkage, f_name);
+gui_ds = new_sum_fastMPdist(linkage, f_name, seg_length);
 set(handles.slider1,'Value',0); 
 hold on;
 cla(handles.axes1)
 plot(gui_ds{1,1}, gui_ds{1,2}, 'Color', [0.5 0.5 0.5], 'LineWidth', .5)
-title('Summarization Tool');
 set(handles.axes1,'XMinorTick','on');
 grid on
 
@@ -234,6 +234,30 @@ f_name = get(hObject,'String');
 % --- Executes during object creation, after setting all properties.
 function edit3_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit4_Callback(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit4 as text
+%        str2double(get(hObject,'String')) returns contents of edit4 as a double
+global seg_length;
+seg_length = str2num((get(hObject,'String')));
+
+% --- Executes during object creation, after setting all properties.
+function edit4_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
